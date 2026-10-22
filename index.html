@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Medição de DNP</title>
+    <style>
+      body { font-family: system-ui, sans-serif; margin: 16px; }
+      #wrap { position: relative; max-width: 640px; }
+      video, #overlay { width: 100%; display: block; border-radius: 8px; }
+      #overlay { position: absolute; inset: 0; }
+      #msg { margin: 12px 0; font-weight: 700; font-size: 1.4rem; min-height: 2.2em; max-width: 640px; }
+      #checks { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+      .chk { padding: 4px 10px; border-radius: 999px; background: #e5e7eb; color: #6b7280; font-size: 0.9rem; }
+      .chk.ok { background: #dcfce7; color: #166534; }
+      .chk.ok::before { content: '✓ '; }
+      #result { font-size: 1.25rem; }
+      #look { text-align: center; font-weight: 600; color: #2563eb; margin: 0 0 8px; max-width: 640px; }
+      #progress { width: 100%; max-width: 640px; height: 14px; }
+      #warn { color: #b45309; margin: 0; }
+    </style>
+  </head>
+  <body>
+    <h1>Medição de DNP</h1>
+    <p>Encoste um cartão de banco <strong>deitado na testa</strong>, segurando com <strong>um dedo no meio da borda de cima</strong> (mão por cima da cabeça, como no desenho tracejado) — <strong>as laterais do cartão precisam aparecer inteiras</strong>. Olhe <strong>para a câmera</strong> (não para a tela) o tempo todo.
+    Fique a uns <strong>50 cm</strong> da câmera e <strong>parado</strong> por alguns segundos — a voz avisa.</p>
+    <button id="voz" style="font-size:1.1rem;padding:10px 18px;margin:0 0 10px;border-radius:10px;border:0;background:#2563eb;color:#fff;cursor:pointer">🔊 Voz ligada</button>
+    <div id="voz-aviso" hidden style="background:#fef3c7;color:#92400e;padding:10px 14px;border-radius:10px;margin:0 0 10px;font-weight:600;max-width:640px">👆 Toque em qualquer lugar da tela para ouvir as instruções em voz.</div>
+    <div id="look">▲ olhe aqui, para a câmera ▲</div>
+    <div id="wrap">
+      <video id="video" playsinline muted></video>
+      <canvas id="overlay"></canvas>
+    </div>
+    <progress id="progress" max="1" value="0"></progress>
+    <div id="checks"></div>
+    <div id="count" style="color:#555;margin-top:6px"></div>
+    <p id="msg">Carregando…</p>
+    <p id="warn"></p>
+    <div id="result"></div>
+    <canvas id="work" hidden></canvas>
+    <script type="module" src="./src/app.js"></script>
+  </body>
+</html>
