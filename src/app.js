@@ -14,6 +14,7 @@ import { CARD_MM } from './cardScale.js';
 import { createStableText, pushText, createStableFlag, pushFlag } from './statusBoard.js';
 import { createVoice } from './voice.js';
 import { createStability, pushFrame, stepMeasure } from './stability.js';
+import { mostraResultado } from './resultCard.js';
 
 // parâmetros ópticos, ajustáveis pela URL para calibrar (ex.: ?hfov=70&cartao=10&rot=13)
 const qs = new URLSearchParams(location.search);
@@ -268,13 +269,23 @@ async function main() {
       : `<div style="color:#b45309">Não deu para extrapolar (${fit.problems.join('; ')}). Resultado pelo método antigo:</div>` +
         bloco(fmt(old.total), fmt(old.left), fmt(old.right));
     fetch('/__debug', { method: 'POST', body: JSON.stringify({ resultado: { modo: fit ? 'afastar' : 'parado', ok: fit?.ok, dp: fit?.total, n: fit?.n ?? samples.length, variacao: fit?.rangeRatio, residuo: fit?.rmsMm, k: fit?.kMm, problemas: fit?.problems, antigo: old.total.value, antigoE: old.left.value, antigoD: old.right.value, margem: old.total.margin, distanciaCm: mediana(samples.map((x) => x.distanciaMm)) / 10, lado: ladoMaior, iris: mediana(samples.map((x) => x.totalPelaIris)) } }) }).catch(() => {});
-    resultEl.innerHTML = principal +
+    // números técnicos (comparações, parâmetros) ficam recolhidos em "Detalhes técnicos" no cartão
+    const tecnico = '<div>' + principal + '</div>' +
       (fit ? `<div style="margin-top:10px;font-size:0.9rem;color:#555">Comparação — DP pelo método antigo (correção por FOV): ${fmt(old.total)} · de perto sem correção: ${fmt(perto.total)}</div>` : `<div style="margin-top:10px;font-size:0.9rem;color:#555">Variação entre quadros: ±${old.total.margin.toFixed(1)} mm · de perto sem correção: ${fmt(perto.total)}</div>`) +
       (Number.isFinite(irisTotal) ? `<div style="font-size:0.9rem;color:#555">Conferência pela íris (método antigo): ${irisTotal.toFixed(1)} mm</div>` : '') +
       (!fit ? `<div style="font-size:0.8rem;color:#888">Medição parada: ${samples.length} quadros a ~${(mediana(samples.map((x) => x.distanciaMm)) / 10).toFixed(0)} cm · FOV ${OPT.hfovDeg}°, cartão→pupila ${OPT.cardToPupilMm} mm, rotação ${OPT.rotationCenterMm} mm</div>` : '') +
       (fit ? `<div style="font-size:0.8rem;color:#888">Extrapolação: ${fit.n} frames, cartão variou ${fit.rangeRatio ? fit.rangeRatio.toFixed(2) : '–'}×, resíduo ${fit.rmsMm ? fit.rmsMm.toFixed(2) : '–'} mm, Δ+r ≈ ${fit.kMm ? fit.kMm.toFixed(0) : '–'} mm · FOV ${OPT.hfovDeg}°, cartão→pupila ${OPT.cardToPupilMm} mm, rotação ${OPT.rotationCenterMm} mm</div>` : '') +
       (fit && fit.warnings && fit.warnings.length ? `<div style="font-size:0.85rem;color:#b45309">${fit.warnings.join(' ')}</div>` : '') +
-      `<button onclick="location.reload()" style="margin-top:12px;padding:8px 16px;font-size:1rem">Medir de novo</button>`;
+      '';
+    const usaFit = !!(fit && fit.ok);
+    mostraResultado({
+      dp: usaFit ? fit.total : old.total.value,
+      esquerdo: usaFit ? fit.left : old.left.value,
+      direito: usaFit ? fit.right : old.right.value,
+      margem: usaFit ? null : old.total.margin,
+      aviso: fit && !fit.ok ? 'Não deu para usar o método de afastar; o resultado veio pela medição parada.' : '',
+      tecnico,
+    });
     progressEl.value = 1;
     setMsg('Pronto!');
     const totalFala = (fit && fit.ok ? fit.total : old.total.value).toFixed(1).replace('.', ',');

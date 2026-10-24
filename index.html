@@ -18,6 +18,38 @@
       #look { text-align: center; font-weight: 600; color: #2563eb; margin: 0 0 8px; max-width: 640px; }
       #progress { width: 100%; max-width: 640px; height: 14px; }
       #warn { color: #b45309; margin: 0; }
+      /* cartão de resultado (src/resultCard.js) — por cima de tudo, para o resultado não sumir embaixo do vídeo */
+      body.res-aberto { overflow: hidden; }
+      #resCard { position: fixed; inset: 0; z-index: 50; background: rgba(15, 23, 42, .55); display: flex; align-items: center; justify-content: center;
+        padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); overflow-y: auto; }
+      .res-box { background: #fff; border-radius: 18px; width: 100%; max-width: 420px; padding: 22px 20px 18px; text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,.25); margin: auto; }
+      .res-ok { display: inline-block; background: #dcfce7; color: #166534; font-weight: 700; font-size: .9rem; padding: 4px 12px; border-radius: 999px; }
+      .res-rot { margin-top: 14px; color: #555; font-size: 1rem; }
+      .res-num { font-size: 4rem; font-weight: 800; line-height: 1; color: #111827; letter-spacing: -.02em; margin: 4px 0 6px; }
+      .res-num small { font-size: 1.5rem; font-weight: 700; color: #555; letter-spacing: 0; }
+      .res-sub { color: #555; font-size: .95rem; }
+      .res-margem { display: block; color: #6b7280; font-size: .85rem; margin-top: 4px; }
+      .res-svg { width: 100%; max-width: 320px; margin: 14px auto 6px; display: block; }
+      .res-rosto { fill: #f8fafc; stroke: #cbd5e1; stroke-width: 2; }
+      .res-nariz { stroke: #94a3b8; stroke-width: 2; stroke-dasharray: 5 5; }
+      .res-olho ellipse { fill: #fff; stroke: #64748b; stroke-width: 2; }
+      .res-pupila { fill: #1f2937; }
+      .res-seta { stroke: #2563eb; stroke-width: 3; stroke-linecap: round; }
+      .res-guia { stroke: #2563eb; stroke-width: 1.5; stroke-dasharray: 3 3; opacity: .6; }
+      .res-txt { font: 700 13px system-ui, sans-serif; fill: #2563eb; text-anchor: middle; }
+      .res-txt-dp { font-size: 16px; }
+      .res-dnp { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 4px; }
+      .res-dnp div { background: #eff6ff; border-radius: 12px; padding: 10px 8px; display: flex; flex-direction: column; gap: 2px; }
+      .res-dnp span { font-size: .8rem; color: #555; }
+      .res-dnp b { font-size: 1.35rem; color: #1e3a8a; }
+      .res-exp { color: #6b7280; font-size: .85rem; margin-top: 10px; }
+      .res-aviso { background: #fef3c7; color: #92400e; border-radius: 10px; padding: 8px 12px; font-size: .9rem; margin-top: 12px; text-align: left; }
+      .res-acoes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
+      .res-bt { font-size: .95rem; padding: 12px 8px; white-space: nowrap; border-radius: 10px; border: 1px solid #cbd5e1; background: #fff; color: #111827; cursor: pointer; font-weight: 600; }
+      .res-bt-pri { background: #2563eb; border-color: #2563eb; color: #fff; }
+      .res-tec { margin-top: 14px; text-align: left; font-size: .8rem; color: #6b7280; }
+      .res-tec summary { cursor: pointer; text-align: center; }
+      .res-tec > div { margin-top: 6px; }
     </style>
   </head>
   <body>
@@ -38,6 +70,14 @@
     <p id="warn"></p>
     <div id="result"></div>
     <canvas id="work" hidden></canvas>
-    <script type="module" src="./src/app.js"></script>
+    <script type="module">
+      // ?previa=resultado mostra só a tela de resultado com números de exemplo (sem câmera), para aprovar o visual
+      if (new URLSearchParams(location.search).get('previa') === 'resultado') {
+        import('./src/resultCard.js').then((m) => m.mostraResultado({ dp: 63.5, esquerdo: 32.0, direito: 31.5, margem: 0.6,
+          tecnico: '<div>Exemplo de detalhes técnicos: 40 quadros a ~45 cm · FOV 64°</div>' }));
+      } else {
+        import('./src/app.js');
+      }
+    </script>
   </body>
 </html>
