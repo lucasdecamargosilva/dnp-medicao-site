@@ -116,6 +116,21 @@ function report(text, f) {
 
 // desenha o que foi detectado por cima do vídeo (cartão em verde, pupilas em azul) e, sem cartão,
 // um GUIA tracejado mostrando onde encostar o cartão e onde pôr o dedo (lojista não sabia segurar, 14/10)
+// Câmera ESPELHADA por padrão (24/10, pedido do Lucas): a pessoa se vê como num espelho, então ir
+// para a direita move a imagem para a direita. Só a EXIBIÇÃO vira (CSS em #wrap.espelho); a detecção
+// lê o quadro original da câmera, então as medidas e o lado OD/OE não mudam. ?espelho=0 desliga.
+const ESPELHO = qs.get('espelho') !== '0';
+if (ESPELHO) document.getElementById('wrap').classList.add('espelho');
+// o overlay também é espelhado pelo CSS; o texto é desvirado aqui para não sair ao contrário
+function textoLegivel(g, t, x, y) {
+  g.save();
+  g.translate(x, y);
+  if (ESPELHO) g.scale(-1, 1);
+  g.strokeText(t, 0, 0);
+  g.fillText(t, 0, 0);
+  g.restore();
+}
+
 function drawOverlay(face, corners) {
   overlay.width = video.videoWidth;
   overlay.height = video.videoHeight;
@@ -143,11 +158,9 @@ function drawOverlay(face, corners) {
     g.textAlign = 'center';
     g.lineWidth = lw * 2;
     g.strokeStyle = 'rgba(0,0,0,0.6)';
-    g.strokeText('dedo aqui', cx, cy - ch / 2 - lw * 8);
-    g.fillText('dedo aqui', cx, cy - ch / 2 - lw * 8);
+    textoLegivel(g, 'dedo aqui', cx, cy - ch / 2 - lw * 8);
     g.fillStyle = '#fff';
-    g.strokeText('cartão aqui', cx, cy + lw * 3);
-    g.fillText('cartão aqui', cx, cy + lw * 3);
+    textoLegivel(g, 'cartão aqui', cx, cy + lw * 3);
     g.restore();
   }
   if (corners) {

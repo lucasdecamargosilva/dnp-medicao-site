@@ -9,6 +9,7 @@
       #wrap { position: relative; max-width: 640px; }
       video, #overlay { width: 100%; display: block; border-radius: 8px; }
       #overlay { position: absolute; inset: 0; }
+      #wrap.espelho video, #wrap.espelho #overlay { transform: scaleX(-1); }
       #msg { margin: 12px 0; font-weight: 700; font-size: 1.4rem; min-height: 2.2em; max-width: 640px; }
       #checks { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
       .chk { padding: 4px 10px; border-radius: 999px; background: #e5e7eb; color: #6b7280; font-size: 0.9rem; }
