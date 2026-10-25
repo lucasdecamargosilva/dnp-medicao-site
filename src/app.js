@@ -1,7 +1,7 @@
 // src/app.js
 import { startCamera } from './camera.js';
 import { createFaceDetector, detectFace } from './faceDetector.js';
-import { detectCardCorners, prepareForehead } from './cardDetector.js';
+import { findCard } from './cardDetector.js';
 import { detectCardByLines } from './cardLines.js';
 import { cardScale } from './cardScale.js';
 import { checkPose } from './poseGate.js';
@@ -297,11 +297,7 @@ async function main() {
 
       drawFrameToWork();
       // contorno fechado primeiro; se o dedo quebrar o contorno, tenta pelas retas das bordas
-      const pre = prepareForehead(work, face);
-      let corners = null;
-      if (pre) {
-        try { corners = detectCardCorners(work, face, pre) || detectCardByLines(work, face, pre); } finally { pre.delete(); }
-      }
+      const corners = findCard(work, face, detectCardByLines);
       drawOverlay(face, corners);
       window.__dnp.ultimo = { corners, olhos: [face.leftEye, face.rightEye] };
       window.__dnp.olhar = face.gaze;

@@ -32,6 +32,11 @@ export function pickCard(candidates, face) {
     if (Math.min(...sides) < 0.4 * w) { info.motivo = 'deformado'; continue; }
     if (Math.abs(sides[0] - sides[2]) > 0.15 * w || Math.abs(sides[1] - sides[3]) > 0.15 * w) { info.motivo = 'lados desiguais'; continue; }
     if (rel < 0.9 || rel > 2.2) { info.motivo = 'tamanho'; continue; }                 // incompatível com um cartão no rosto
+    // largura/altura: inclinar na testa só ENCURTA a altura (proporção sobe); se ficou MENOR que a de um
+    // cartão, algo está cortando a largura — quase sempre o dedo cobrindo uma lateral (24/10: aceitava
+    // o pedaço visível do cartão e media 14% a menos)
+    const prop = ((sides[0] + sides[2]) / 2) / ((sides[1] + sides[3]) / 2);
+    if (prop < TARGET_RATIO * 0.977 || prop > TARGET_RATIO / 0.72) { info.motivo = `proporção ${prop.toFixed(2)} (cartão cortado?)`; continue; }
     if (Math.abs(cx - mid.x) > 0.6 * ipd) { info.motivo = 'fora do centro'; continue; } // não está entre os olhos
     if (cy > mid.y || mid.y - cy > 2.5 * ipd) { info.motivo = 'altura'; continue; }     // não está na testa
     info.motivo = 'ok';
@@ -84,18 +89,35 @@ export function readRegion(canvasEl, r) {
 }
 
 // prepara a testa uma vez por quadro: recorte + bordas em cor, reaproveitados pelos dois detectores
-export function prepareForehead(canvasEl, face) {
+// sensivel=true: limiares de borda mais baixos (2ª tentativa, p.ex. cartão rosa/bege contra a pele)
+export function prepareForehead(canvasEl, face, { sensivel = false } = {}) {
   const r = foreheadRect(face, canvasEl.width, canvasEl.height);
   if (!r) return null;
   const img = canvasEl.getContext('2d', { willReadFrequently: true }).getImageData(r.x0, r.y0, r.w, r.h);
   const roi = window.cv.matFromImageData(img);
   try {
-    const edges = colorEdges(roi, 40, 120);
+    const edges = sensivel ? colorEdges(roi, 15, 45) : colorEdges(roi, 40, 120);
     // pixels guardados para a checagem de cor das bordas (cardLines)
     return { r, edges, pixels: { data: img.data, w: r.w, h: r.h, x0: r.x0, y0: r.y0 }, delete: () => edges.delete() };
   } finally {
     roi.delete();
   }
+}
+
+// acha o cartão com os dois detectores; se nada, repete com bordas mais sensíveis (só nesse caso,
+// para não pesar a cada quadro). detectByLines é injetado para não criar import circular.
+export function findCard(canvasEl, face, detectByLines) {
+  for (const sensivel of [false, true]) {
+    const pre = prepareForehead(canvasEl, face, { sensivel });
+    if (!pre) return null;
+    try {
+      const q = detectCardCorners(canvasEl, face, pre) || detectByLines(canvasEl, face, pre);
+      if (q) return q;
+    } finally {
+      pre.delete();
+    }
+  }
+  return null;
 }
 
 function orderCorners(pts) {

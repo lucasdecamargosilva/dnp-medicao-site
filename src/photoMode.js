@@ -4,7 +4,7 @@
 // olhando para a câmera); a lente vem do EXIF quando o celular manda. Até 3 fotos → mediana.
 import { createFaceDetector, detectFace } from './faceDetector.js';
 import { loadOpenCv } from './opencvLoader.js';
-import { prepareForehead, detectCardCorners } from './cardDetector.js';
+import { findCard } from './cardDetector.js';
 import { detectCardByLines } from './cardLines.js';
 import { checkPose } from './poseGate.js';
 import { lerExif, hfovFromF35 } from './exif.js';
@@ -104,11 +104,7 @@ export async function analisaFoto(arq, { landmarker, opt }) {
   const face = detectFace(landmarker, canvas);
   if (!face) return { motivo: 'Não encontrei o rosto. A foto precisa mostrar o rosto inteiro, de frente.', miniatura: miniatura(canvas) };
 
-  const pre = prepareForehead(canvas, face);
-  let corners = null;
-  if (pre) {
-    try { corners = detectCardCorners(canvas, face, pre) || detectCardByLines(canvas, face, pre); } finally { pre.delete(); }
-  }
+  const corners = achaCartao(canvas, face);
   if (!corners) {
     return {
       motivo: window.__dnpCoberto
@@ -130,6 +126,34 @@ export async function analisaFoto(arq, { landmarker, opt }) {
   if (m.larguraCartaoPx < 90) return { motivo: 'O cartão ficou pequeno demais na foto. Tire mais de perto ou use um pouco de zoom.', miniatura: mini };
   if (m.distanciaCm < 25) return { motivo: 'A foto foi tirada perto demais. Afaste o celular (o ideal é outra pessoa tirar a ~1 metro).', miniatura: mini };
   return { medida: m, lente, miniatura: mini };
+}
+
+// Foto é uma imagem só: tenta achar o cartão em 3 tamanhos (100%, 60%, 40%). Os limites do detector
+// foram ajustados com vídeo (~2 MP); numa foto de 12 MP a textura da pele/cabelo gera bordas demais.
+const ESCALAS = [1, 0.6, 0.4];
+function achaCartao(canvas, face) {
+  let coberto = false;
+  for (const k of ESCALAS) {
+    let c = canvas;
+    let f = face;
+    if (k !== 1) {
+      c = document.createElement('canvas');
+      c.width = Math.round(canvas.width * k);
+      c.height = Math.round(canvas.height * k);
+      c.getContext('2d', { willReadFrequently: true }).drawImage(canvas, 0, 0, c.width, c.height);
+      const s = (p) => ({ x: p.x * k, y: p.y * k });
+      f = { ...face, leftEye: s(face.leftEye), rightEye: s(face.rightEye), noseCenter: s(face.noseCenter) };
+    }
+    const q = findCard(c, f, detectCardByLines);
+    coberto = coberto || !!window.__dnpCoberto;
+    if (q) {
+      window.__dnpCoberto = false;
+      const s = (p) => ({ x: p.x / k, y: p.y / k });
+      return { topLeft: s(q.topLeft), topRight: s(q.topRight), bottomRight: s(q.bottomRight), bottomLeft: s(q.bottomLeft), deduzido: q.deduzido };
+    }
+  }
+  window.__dnpCoberto = coberto;
+  return null;
 }
 
 // miniatura com o que foi achado (pupilas em azul, cartão em verde), para a pessoa conferir

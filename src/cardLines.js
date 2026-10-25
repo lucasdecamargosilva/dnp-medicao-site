@@ -93,9 +93,9 @@ function cardColor(px, q) {
   return vals.map((a) => a.sort((p, q2) => p - q2)[a.length >> 1]);
 }
 
-// nota de uma borda a→b (com "dentro" para o lado de centro): fração de amostras com cor de cartão
-// por dentro MENOS fração com cor de cartão por fora. 1 = borda perfeita; ≤0 = não é a borda do cartão.
-function edgeColorScore(px, a, b, centro, cor, off, tol) {
+// uma borda a→b (com "dentro" para o lado do centro): fração das amostras com cor de cartão por DENTRO
+// e por FORA. Borda certa = cartão por dentro e outra cor por fora.
+function edgeStats(px, a, b, centro, cor, off, tol) {
   const len = Math.hypot(b.x - a.x, b.y - a.y);
   let nx = -(b.y - a.y) / len;
   let ny = (b.x - a.x) / len;
@@ -113,19 +113,136 @@ function edgeColorScore(px, a, b, centro, cor, off, tol) {
     if (dist(ci, cor) < tol) dentro++;
     if (dist(co, cor) < tol) fora++;
   }
-  return n ? (dentro - fora) / n : -1;
+  return n ? { dentro: dentro / n, fora: fora / n } : { dentro: 0, fora: 1 };
 }
 
-export function cardColorScore(px, q, ipd) {
+// tom da pele da TESTA logo abaixo do cartão (entre o cartão e as sobrancelhas)
+function skinTone(px, q, ipd) {
+  const vals = [[], [], []];
+  const k = 0.12 * ipd;
+  for (let t = 0.2; t <= 0.8; t += 0.1) {
+    const x = q.bottomLeft.x + t * (q.bottomRight.x - q.bottomLeft.x);
+    const y = q.bottomLeft.y + t * (q.bottomRight.y - q.bottomLeft.y) + k;
+    const c = pix(px, x, y);
+    if (c) c.forEach((v, i) => vals[i].push(v));
+  }
+  if (vals[0].length < 3) return null;
+  return vals.map((a2) => a2.sort((p, q2) => p - q2)[a2.length >> 1]);
+}
+
+// Veredito de cor do retângulo. Lado REAL: cartão por dentro (≥50%) e diferença dentro−fora ≥0,3.
+// Lado DEDUZIDO (dedo por cima): basta um pouco de cartão por dentro (≥15%) e quase nada por fora.
+// Cartão com o MESMO TOM da pele (rosa, bege — caso de um lojista 24/10): a cor não separa; aí só se
+// exige cartão por dentro, e quem chama endurece a regra de formato.
+export function colorVerdict(px, q, ipd, { deduzidoL = false, deduzidoR = false } = {}) {
   const cor = cardColor(px, q);
-  if (!cor) return -1;
+  if (!cor) return { ok: false, score: -1, ambiguo: false };
+  const pele = skinTone(px, q, ipd);
+  const ambiguo = !!pele && dist(pele, cor) < 30;
   const centro = { x: (q.topLeft.x + q.bottomRight.x) / 2, y: (q.topLeft.y + q.bottomRight.y) / 2 };
   const off = Math.max(2, 0.03 * ipd);
   const tol = 22;   // em tonalidade (0–255 por componente)
-  const L = edgeColorScore(px, q.topLeft, q.bottomLeft, centro, cor, off, tol);
-  const R = edgeColorScore(px, q.topRight, q.bottomRight, centro, cor, off, tol);
-  const B = edgeColorScore(px, q.bottomLeft, q.bottomRight, centro, cor, off, tol);
-  return Math.min(L, R) * 0.8 + B * 0.2;   // laterais mandam (dão a escala)
+  const L = edgeStats(px, q.topLeft, q.bottomLeft, centro, cor, off, tol);
+  const R = edgeStats(px, q.topRight, q.bottomRight, centro, cor, off, tol);
+  const B = edgeStats(px, q.bottomLeft, q.bottomRight, centro, cor, off, tol);
+  const lado = (st, deduzido) => deduzido
+    ? st.dentro >= 0.15 && (ambiguo || st.fora <= 0.15)
+    : st.dentro >= 0.5 && (ambiguo || st.dentro - st.fora >= 0.3);
+  const ok = lado(L, deduzidoL) && lado(R, deduzidoR) && B.dentro >= 0.4 && (ambiguo || B.dentro - B.fora >= 0.2);
+  const score = (L.dentro - L.fora) + (R.dentro - R.fora) + (B.dentro - B.fora);
+  return { ok, score, ambiguo };
+}
+
+export function cardColorScore(px, q, ipd) {
+  return colorVerdict(px, q, ipd).score;
+}
+
+// ---- lateral ESCONDIDA pelo dedo (24/10, pedido do Lucas: "nem todo mundo vai segurar no meio") ----
+// Se o dedo cobre uma lateral (ou as duas), a borda de cima e a de baixo ainda vão até os cantos: onde
+// elas TERMINAM diz onde fica a lateral. Pega a ponta mais de fora das duas (o dedo encurta uma, não
+// estica) e soma o canto arredondado do cartão (raio ISO 3,18 mm), porque a reta da borda acaba onde
+// começa a curva. Só vale se a cor confirmar: por dentro da lateral deduzida tem cor de cartão (onde o
+// dedo não cobre) e por fora não — um fio de cabelo ou o fim de uma reta do fundo não passam.
+const RAIO_CANTO_MM = 3.18;
+
+function lateralPorPonta(T, B, lado, wPxAprox) {
+  // ponta mais de fora entre a borda de cima (T) e a de baixo (B): lado 'E' = menor x, 'D' = maior x
+  const pontas = [T, B].map((H) => {
+    const x = lado === 'E' ? H.lo : H.hi;
+    return { x, y: H.c + H.k * x, k: H.k };
+  });
+  const p = lado === 'E' ? (pontas[0].x <= pontas[1].x ? pontas[0] : pontas[1]) : (pontas[0].x >= pontas[1].x ? pontas[0] : pontas[1]);
+  // 70% do raio: a reta detectada avança um pouco sobre a curva do canto (com o raio inteiro, a
+  // largura deduzida saía ~1% maior em cartões desenhados — média 303 px para 300 reais)
+  const r = 0.7 * RAIO_CANTO_MM * wPxAprox / 85.6;
+  const n = Math.sqrt(1 + p.k * p.k);
+  const s = lado === 'E' ? -1 : 1;
+  const x = p.x + s * r / n;
+  const y = p.y + s * r * p.k / n;
+  // lateral perpendicular à borda de cima: x = c + kv·y com kv = −k
+  return { k: -T.k, c: x + T.k * y, deduzida: true };
+}
+
+export function inferCardFromEdges({ verts, hors }, face, { ratio = 85.6 / 53.98, pixels = null } = {}) {
+  const { ipd, mid } = face;
+  let best = null;
+  let bestScore = -Infinity;
+  for (let a = 0; a < hors.length; a++) {
+    for (let b = a + 1; b < hors.length; b++) {
+      const T = hors[a];
+      const B = hors[b];
+      if (Math.abs(T.k - B.k) > 0.07) continue;
+      const h = (B.at - T.at) / Math.sqrt(1 + T.k * T.k);
+      if (h < 0.45 * ipd || h > 1.2 * ipd) continue;
+      if (Math.min(T.hi - T.lo, B.hi - B.lo) < 0.5 * ipd) continue;          // bordas compridas o bastante
+      // largura aproximada pelas pontas, para o raio do canto e para achar laterais reais por perto
+      // (as pontas das retas ficam um raio de canto antes de cada canto: largura = pontas + 2 raios)
+      const w0 = (Math.max(T.hi, B.hi) - Math.min(T.lo, B.lo)) / Math.sqrt(1 + T.k * T.k) / (1 - 2 * RAIO_CANTO_MM / 85.6);
+      if (w0 < 0.8 * ipd) continue;
+      // lateral real perto da ponta (apoio mínimo de 35% da altura) vence a deduzida
+      const real = (lado) => {
+        const ded = lateralPorPonta(T, B, lado, w0);
+        const yMid = (T.at + B.at) / 2;
+        const xDed = ded.c + ded.k * yMid;
+        let melhor = null;
+        for (const V of verts) {
+          if (Math.abs(V.k + T.k) > 0.1) continue;
+          const xV = V.c + V.k * yMid;
+          if (Math.abs(xV - xDed) > 0.06 * w0) continue;
+          if (Math.min(V.len, h) / h < 0.35) continue;
+          if (!melhor || V.len > melhor.len) melhor = V;
+        }
+        return melhor || ded;
+      };
+      const L = real('E');
+      const R = real('D');
+      // (as duas laterais "reais" mas curtas também passam aqui: o detector normal exige 50% de cada uma)
+      const tl = cross(L, T), tr = cross(R, T), br = cross(R, B), bl = cross(L, B);
+      const w = Math.hypot(tr.x - tl.x, tr.y - tl.y);
+      const rel = w / ipd;
+      if (rel < 0.9 || rel > 2.2) continue;
+      const hr = h / (w / ratio);
+      if (hr < 0.72 || hr > 1.025) continue;
+      const cx = (tl.x + tr.x + br.x + bl.x) / 4;
+      const cy = (tl.y + tr.y + br.y + bl.y) / 4;
+      if (Math.abs(cx - mid.x) > 0.6 * ipd) continue;
+      if (cy > mid.y || mid.y - cy > 2.5 * ipd) continue;
+      const quad = { topLeft: tl, topRight: tr, bottomRight: br, bottomLeft: bl };
+      let score = 0;
+      if (pixels) {
+        const v = colorVerdict(pixels, quad, ipd, { deduzidoL: !!L.deduzida, deduzidoR: !!R.deduzida });
+        if (!v.ok) continue;
+        if (v.ambiguo && hr < 0.85) continue;                    // cor não ajuda → formato mais rígido
+        score = v.score;
+      }
+      score += (L.deduzida ? 0 : 1) + (R.deduzida ? 0 : 1);                     // prefere lado real
+      if (score > bestScore) {
+        bestScore = score;
+        best = { ...quad, deduzido: [L.deduzida && 'esquerda', R.deduzida && 'direita'].filter(Boolean) };
+      }
+    }
+  }
+  return best;
 }
 
 // escolhe o melhor retângulo de cartão; face = { ipd, mid:{x,y} } em px da mesma imagem
@@ -153,7 +270,7 @@ export function findCardFromLines({ verts, hors }, face, { ratio = 85.6 / 53.98,
           const hr = h / (w / ratio);                            // 1 = cartão de frente; testa inclina → menor
           // inclinar na testa só ENCURTA a altura; altura "grande demais" = largura pega por dentro
           // (ex.: borda de um desenho interno do cartão quando o dedo cobre a lateral de verdade)
-          if (hr < 0.72 || hr > 1.04) { debug?.push({ L: Math.round(L.at), R: Math.round(R.at), T: Math.round(T.at), B: Math.round(B.at), motivo: 'altura ' + hr.toFixed(2) }); continue; }
+          if (hr < 0.72 || hr > 1.025) { debug?.push({ L: Math.round(L.at), R: Math.round(R.at), T: Math.round(T.at), B: Math.round(B.at), motivo: 'altura ' + hr.toFixed(2) }); continue; }
           const tl = cross(L, T);
           const tr = cross(R, T);
           const br = cross(R, B);
@@ -177,9 +294,10 @@ export function findCardFromLines({ verts, hors }, face, { ratio = 85.6 / 53.98,
           const quad = { topLeft: tl, topRight: tr, bottomRight: br, bottomLeft: bl };
           let score;
           if (pixels) {
-            const cs = cardColorScore(pixels, quad, ipd);
-            if (cs < 0.5) { debug?.push({ L: Math.round(L.at), R: Math.round(R.at), T: Math.round(T.at), B: Math.round(B.at), motivo: 'cor ' + cs.toFixed(2) }); continue; }   // bordas não separam cartão de fundo
-            score = 2 * cs + sup;
+            const v = colorVerdict(pixels, quad, ipd);
+            if (!v.ok) { debug?.push({ L: Math.round(L.at), R: Math.round(R.at), T: Math.round(T.at), B: Math.round(B.at), motivo: 'cor ' + v.score.toFixed(2) }); continue; }   // bordas não separam cartão de fundo
+            if (v.ambiguo && hr < 0.85) continue;                // cor não ajuda → formato mais rígido
+            score = 2 * v.score + sup;
           } else {
             score = 2 * rel + hr + sup;                          // sem pixels: a maior válida = bordas de fora
           }
@@ -245,7 +363,9 @@ export function detectCardByLines(canvasEl, face, pre = null) {
     const grouped = groupLines(segs, { refX: mid.x, refY: mid.y - ipd, mergePx: Math.max(3, ipd * 0.04) });
     if (typeof window !== 'undefined') window.__dnpLines = { segs: segs.length, verts: grouped.verts.length, hors: grouped.hors.length };
     const debug = typeof window !== 'undefined' && window.__dnpLinesDebug ? [] : null;
-    const res = findCardFromLines(grouped, { ipd, mid }, { pixels: pre ? pre.pixels : null, debug });
+    // 1º as 4 bordas visíveis; se não der, deduz a lateral escondida pelas pontas de cima/baixo
+    const res = findCardFromLines(grouped, { ipd, mid }, { pixels: pre ? pre.pixels : null, debug })
+      || inferCardFromEdges(grouped, { ipd, mid }, { pixels: pre ? pre.pixels : null });
     if (debug) window.__dnpLinesDebug = debug;
     if (!res && typeof window !== 'undefined') window.__dnpCoberto = looksLikeCoveredCard(grouped, { ipd, mid });
     else if (typeof window !== 'undefined') window.__dnpCoberto = false;
