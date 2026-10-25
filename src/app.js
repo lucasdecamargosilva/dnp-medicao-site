@@ -15,6 +15,8 @@ import { createStableText, pushText, createStableFlag, pushFlag } from './status
 import { createVoice } from './voice.js';
 import { createStability, pushFrame, stepMeasure } from './stability.js';
 import { mostraResultado } from './resultCard.js';
+import { loadOpenCv } from './opencvLoader.js';
+import { iniciaModoFoto } from './photoMode.js';
 
 // parâmetros ópticos, ajustáveis pela URL para calibrar (ex.: ?hfov=70&cartao=10&rot=13)
 const qs = new URLSearchParams(location.search);
@@ -184,28 +186,6 @@ function drawOverlay(face, corners) {
 }
 
 function setMsg(t) { msg.textContent = t; }
-
-// OpenCV é carregado SÓ DEPOIS do detector de rosto (13/10): o opencv.js cria um objeto global
-// `Module` e, se ele já existir quando o MediaPipe inicializa, o MediaPipe trava a página inteira.
-function loadOpenCv() {
-  const TIMEOUT_MS = 15000;
-  return new Promise((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = './vendor/opencv.js';
-    script.onerror = () => reject(new Error('OpenCV não carregou. Verifique a conexão e recarregue a página.'));
-    document.head.appendChild(script);
-    const start = Date.now();
-    const check = () => {
-      if (window.cv && window.cv.Mat) resolve();
-      else if (Date.now() - start >= TIMEOUT_MS) {
-        reject(new Error('OpenCV não carregou. Verifique a conexão e recarregue a página.'));
-      } else {
-        setTimeout(check, 100);
-      }
-    };
-    check();
-  });
-}
 
 function drawFrameToWork() {
   work.width = video.videoWidth;
@@ -432,4 +412,22 @@ async function main() {
   loop();
 }
 
-main().catch((err) => setMsg(err.message));
+// 24/10: tela inicial com duas opções — muita gente tinha dificuldade em posicionar o cartão ao vivo,
+// então o modo FOTO (tirar com calma e enviar) vem primeiro. ?modo=foto|vivo|lento|afastar pula a escolha.
+function iniciaVivo() {
+  document.getElementById('escolha').hidden = true;
+  document.getElementById('vivo').hidden = false;
+  main().catch((err) => setMsg(err.message));
+}
+function iniciaFoto() {
+  document.getElementById('escolha').hidden = true;
+  iniciaModoFoto({ opt: OPT, voz }).catch((err) => { document.getElementById('foto-status').textContent = err.message; });
+}
+const modo = qs.get('modo');
+if (modo === 'foto') iniciaFoto();
+else if (modo) iniciaVivo();
+else {
+  document.getElementById('escolha').hidden = false;
+  document.getElementById('bt-foto').onclick = iniciaFoto;
+  document.getElementById('bt-vivo').onclick = iniciaVivo;
+}

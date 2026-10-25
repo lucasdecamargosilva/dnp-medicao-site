@@ -69,8 +69,9 @@ export function detectFace(landmarker, videoEl) {
   if (!result.faceLandmarks || result.faceLandmarks.length === 0) return null;
 
   const lm = result.faceLandmarks[0];
-  const w = videoEl.videoWidth;
-  const h = videoEl.videoHeight;
+  // vale para vídeo (videoWidth) e para foto num canvas (width) — modo foto, 24/10
+  const w = videoEl.videoWidth || videoEl.width;
+  const h = videoEl.videoHeight || videoEl.height;
   const toPx = (p) => ({ x: p.x * w, y: p.y * h });
 
   // diâmetro da íris em px: média dos dois eixos (horizontal 0–2, vertical 1–3) dos dois olhos
