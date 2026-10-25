@@ -35,6 +35,42 @@ const MODO_AFASTAR = qs.get('modo') === 'afastar';
 // ficar parado + olhar fixo (stability.js) fica em ?modo=lento.
 const MODO_LENTO = qs.get('modo') === 'lento';
 const STATIC_FRAMES = 40;
+// 25/10: FOTO AUTOMÁTICA (padrão da tela inicial; ?modo=auto): a câmera fica escaneando com as
+// orientações e TIRA a foto sozinha quando está tudo certo e a pessoa parada — como no oculosworld.
+// 3 fotos (cada uma passa por todas as verificações naquele instante) → mediana.
+let MODO_AUTO = qs.get('modo') === 'auto';
+const AUTO_FOTOS = 3;
+const AUTO_FIRME_MS = 600;     // parado e tudo ok por esse tempo antes de cada foto
+const AUTO_INTERVALO_MS = 450; // entre uma foto e outra
+
+// "flash" + clique na hora da foto, e miniatura embaixo da câmera
+function efeitoFoto(canvas) {
+  const wrap = document.getElementById('wrap');
+  wrap.classList.remove('flash');
+  void wrap.offsetWidth;
+  wrap.classList.add('flash');
+  try {
+    const ac = efeitoFoto.ac || (efeitoFoto.ac = new (window.AudioContext || window.webkitAudioContext)());
+    const o = ac.createOscillator();
+    const g = ac.createGain();
+    o.frequency.value = 1800;
+    g.gain.setValueAtTime(0.25, ac.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.08);
+    o.connect(g).connect(ac.destination);
+    o.start();
+    o.stop(ac.currentTime + 0.09);
+  } catch (e) { /* sem som, tudo bem */ }
+  const tira = document.getElementById('auto-fotos');
+  const k = 120 / canvas.width;
+  const c = document.createElement('canvas');
+  c.width = 120;
+  c.height = Math.round(canvas.height * k);
+  c.getContext('2d').drawImage(canvas, 0, 0, c.width, c.height);
+  const img = document.createElement('img');
+  img.src = c.toDataURL('image/jpeg', 0.7);
+  if (ESPELHO) img.style.transform = 'scaleX(-1)';
+  tira.appendChild(img);
+}
 const MAX_SAMPLES = 600;
 const MIN_PIXELS = 1280 * 720; // abaixo disso a câmera é fraca (mesmo limite do Fittingbox, pesquisa §2.1 [REA])
 
@@ -226,6 +262,7 @@ async function main() {
   // durante a medição, quadro sem rosto/cartão/pose ok só é PULADO; recomeça só se durar mais de 1,2 s
   // (antes qualquer falha de um instante cancelava e dizia "você se mexeu" com a pessoa parada)
   const quebraMedicao = () => {
+    med.firmeDesde = null;   // foto automática: qualquer quadro ruim zera o "tudo certo há X ms"
     if (MODO_AFASTAR || !MODO_LENTO || med.phase !== 'medir') return;
     const agora = performance.now();
     if (med.falhaDesde == null) med.falhaDesde = agora;
@@ -340,6 +377,21 @@ async function main() {
       let step;
       if (MODO_AFASTAR) {
         step = guideStep(guide, wPx / video.videoWidth, robustRange(samples.map((x) => x.w)));
+      } else if (MODO_AUTO) {
+        // foto automática: espera tudo certo + parado, aí tira a foto (até 3)
+        const agora = performance.now();
+        const sp = staticStep(wPx / ladoMaior);
+        const stab = pushFrame(est, { t: agora, le: face.leftEye, re: face.rightEye, w: wPx });
+        let tira = false;
+        if (!sp.collect || stab.stable === false) {
+          med.firmeDesde = null;
+        } else if (stab.stable === true) {
+          med.firmeDesde ??= agora;
+          tira = agora - med.firmeDesde >= AUTO_FIRME_MS && agora - (med.ultimaFoto || 0) >= AUTO_INTERVALO_MS;
+        }
+        if (tira) { med.ultimaFoto = agora; efeitoFoto(work); }
+        step = { collect: tira, tooFar: false, done: tira && samples.length + 1 >= AUTO_FOTOS,
+          progress: samples.length / AUTO_FOTOS, message: sp.collect ? 'Isso! Fique parado olhando para a câmera…' : sp.message };
       } else if (!MODO_LENTO) {
         // medição rápida: coleta assim que estiver na faixa de distância, 40 quadros
         step = { ...staticStep(wPx / ladoMaior), done: false, tooFar: false };
@@ -364,7 +416,8 @@ async function main() {
         return requestAnimationFrame(loop);
       }
       if (!step.collect) {
-        if (!MODO_AFASTAR) countEl.textContent = '';
+        if (!MODO_AFASTAR && !MODO_AUTO) countEl.textContent = '';
+        if (MODO_AUTO) countEl.textContent = samples.length ? `📸 ${samples.length} de ${AUTO_FOTOS} fotos — continue parado` : '📸 A foto é tirada sozinha quando estiver tudo certo';
         report(step.message, { rosto: true, cartao: true, postura: true });
         return requestAnimationFrame(loop);
       }
@@ -397,7 +450,7 @@ async function main() {
       }
       report(step.message, { rosto: true, cartao: true, postura: true, distancia: true });
       progressEl.title = `${samples.length} medidas`;
-      countEl.textContent = MODO_AFASTAR ? `${samples.length} de ${EXTRAP_DEFAULTS.minFrames} medidas` : MODO_LENTO ? `Medindo… ${Math.round(step.progress * 100)}%` : `${samples.length} de ${STATIC_FRAMES} medidas`;
+      countEl.textContent = MODO_AFASTAR ? `${samples.length} de ${EXTRAP_DEFAULTS.minFrames} medidas` : MODO_AUTO ? `📸 ${samples.length} de ${AUTO_FOTOS} fotos — continue parado` : MODO_LENTO ? `Medindo… ${Math.round(step.progress * 100)}%` : `${samples.length} de ${STATIC_FRAMES} medidas`;
       requestAnimationFrame(loop);
     } catch (err) {
       report('Erro na medição: ' + err.message + ' — tentando de novo…', {});
@@ -408,8 +461,14 @@ async function main() {
   loop();
 }
 
-// 24/10: tela inicial com duas opções — muita gente tinha dificuldade em posicionar o cartão ao vivo,
-// então o modo FOTO (tirar com calma e enviar) vem primeiro. ?modo=foto|vivo|lento|afastar pula a escolha.
+// Tela inicial: FOTO AUTOMÁTICA (recomendado) ou enviar foto da galeria.
+// ?modo=auto|foto|vivo|lento|afastar pula a escolha.
+function iniciaAuto() {
+  MODO_AUTO = true;
+  document.getElementById('instr-vivo').hidden = true;
+  document.getElementById('instr-auto').hidden = false;
+  iniciaVivo();
+}
 function iniciaVivo() {
   document.getElementById('escolha').hidden = true;
   document.getElementById('vivo').hidden = false;
@@ -421,9 +480,10 @@ function iniciaFoto() {
 }
 const modo = qs.get('modo');
 if (modo === 'foto') iniciaFoto();
+else if (modo === 'auto') iniciaAuto();
 else if (modo) iniciaVivo();
 else {
   document.getElementById('escolha').hidden = false;
+  document.getElementById('bt-auto').onclick = iniciaAuto;
   document.getElementById('bt-foto').onclick = iniciaFoto;
-  document.getElementById('bt-vivo').onclick = iniciaVivo;
 }

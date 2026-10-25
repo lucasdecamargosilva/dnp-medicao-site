@@ -71,6 +71,12 @@
       .foto-info { display: flex; flex-direction: column; gap: 2px; font-size: .95rem; }
       .foto-ok { color: #166534; } .foto-ruim { color: #b45309; }
       .foto-lente { color: #6b7280; font-size: .8rem; }
+      /* foto automática (25/10): flash na hora da foto + miniaturas */
+      #wrap.flash::after { content: ''; position: absolute; inset: 0; background: #fff; border-radius: 8px; animation: pl-flash .35s ease-out forwards; pointer-events: none; }
+      @keyframes pl-flash { from { opacity: .85; } to { opacity: 0; } }
+      #auto-fotos { display: flex; gap: 8px; margin-top: 8px; }
+      #auto-fotos img { width: 72px; border-radius: 6px; border: 2px solid #16a34a; }
+      .instr-auto { font-size: 1.05rem; max-width: 640px; }
     </style>
   </head>
   <body>
@@ -78,8 +84,8 @@
     <!-- 24/10: escolha inicial — FOTO primeiro (mais fácil que posicionar o cartão ao vivo) -->
     <div id="escolha" hidden>
       <p class="esc-intro">Você vai precisar de um <strong>cartão de banco</strong> (qualquer um, é só para dar a escala).</p>
-      <button type="button" id="bt-foto" class="esc-bt esc-pri">📷 Enviar foto <small>mais fácil — tire com calma</small></button>
-      <button type="button" id="bt-vivo" class="esc-bt">🎥 Medir ao vivo <small>pela câmera, com a voz guiando</small></button>
+      <button type="button" id="bt-auto" class="esc-bt esc-pri">📸 Foto automática <small>recomendado — a câmera tira sozinha quando estiver tudo certo</small></button>
+      <button type="button" id="bt-foto" class="esc-bt">🖼️ Enviar foto da galeria <small>se já tiver uma foto com o cartão na testa</small></button>
     </div>
 
     <section id="foto" hidden>
@@ -99,7 +105,8 @@
     </section>
 
     <div id="vivo" hidden>
-      <p>Encoste um cartão de banco <strong>deitado na testa</strong>, segurando com <strong>um dedo no meio da borda de cima</strong> (mão por cima da cabeça, como no desenho tracejado) — <strong>as laterais do cartão precisam aparecer inteiras</strong>. Olhe <strong>para a câmera</strong> (não para a tela) o tempo todo.
+      <p id="instr-auto" class="instr-auto" hidden>Encoste o cartão <strong>deitado na testa</strong> (pode segurar como for mais fácil), olhe <strong>para a lentinha da câmera</strong> e siga a voz. <strong>Quando estiver tudo certo, a câmera tira as fotos sozinha</strong> — fique parado até completar 3.</p>
+      <p id="instr-vivo">Encoste um cartão de banco <strong>deitado na testa</strong>, segurando com <strong>um dedo no meio da borda de cima</strong> (mão por cima da cabeça, como no desenho tracejado) — <strong>as laterais do cartão precisam aparecer inteiras</strong>. Olhe <strong>para a câmera</strong> (não para a tela) o tempo todo.
       Fique a uns <strong>50 cm</strong> da câmera e <strong>parado</strong> por alguns segundos — a voz avisa.</p>
       <button id="voz" style="font-size:1.1rem;padding:10px 18px;margin:0 0 10px;border-radius:10px;border:0;background:#2563eb;color:#fff;cursor:pointer">🔊 Voz ligada</button>
       <div id="voz-aviso" hidden style="background:#fef3c7;color:#92400e;padding:10px 14px;border-radius:10px;margin:0 0 10px;font-weight:600;max-width:640px">👆 Toque em qualquer lugar da tela para ouvir as instruções em voz.</div>
@@ -111,6 +118,7 @@
       <progress id="progress" max="1" value="0"></progress>
       <div id="checks"></div>
       <div id="count" style="color:#555;margin-top:6px"></div>
+      <div id="auto-fotos"></div>
       <p id="msg">Carregando…</p>
       <p id="warn"></p>
       <div id="result"></div>
