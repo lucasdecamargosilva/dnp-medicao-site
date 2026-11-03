@@ -16,7 +16,9 @@ export function mostraResultado(dados, { onRefazer } = {}) {
   const margem = Number.isFinite(dados.margem) && dados.margem > 0
     ? `<span class="res-margem">margem ±${n1(dados.margem)} mm</span>` : '';
   // aberto pelo fluxo de lentes da loja (?retorno=1, outra aba): devolve a medida pra aba que abriu
-  const volta = new URLSearchParams(location.search).get('retorno') === '1' && window.opener && !window.opener.closed;
+  // ou aberto DENTRO da página da loja (iframe): devolve pra janela de cima e ela fecha o medidor
+  const destino = window.parent !== window ? window.parent : (window.opener && !window.opener.closed ? window.opener : null);
+  const volta = new URLSearchParams(location.search).get('retorno') === '1' && !!destino;
   el.innerHTML = `
     <div class="res-box">
       <div class="res-ok">✓ Medição pronta</div>
@@ -50,11 +52,13 @@ export function mostraResultado(dados, { onRefazer } = {}) {
   };
   const btUsar = el.querySelector('[data-acao="usar"]');
   if (btUsar) btUsar.onclick = () => {
-    try { window.opener.postMessage({ type: 'pl-dnp', dp: dados.dp, od: dados.direito, oe: dados.esquerdo }, '*'); } catch (e) {}
+    try { destino.postMessage({ type: 'pl-dnp', dp: dados.dp, od: dados.direito, oe: dados.esquerdo }, '*'); } catch (e) {}
     btUsar.textContent = 'Medida enviada ✓ — pode voltar para a loja';
     btUsar.disabled = true;
-    try { window.opener.focus(); } catch (e) {}
-    setTimeout(() => { try { window.close(); } catch (e) {} }, 900);
+    if (destino === window.opener) {
+      try { window.opener.focus(); } catch (e) {}
+      setTimeout(() => { try { window.close(); } catch (e) {} }, 900);
+    }
   };
   el.querySelector('[data-acao="refazer"]').onclick = () => (onRefazer ? onRefazer() : location.reload());
   el.querySelector('.res-box').focus?.();
