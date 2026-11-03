@@ -15,6 +15,8 @@ export function mostraResultado(dados, { onRefazer } = {}) {
   el.setAttribute('aria-label', 'Resultado da medição');
   const margem = Number.isFinite(dados.margem) && dados.margem > 0
     ? `<span class="res-margem">margem ±${n1(dados.margem)} mm</span>` : '';
+  // aberto pelo fluxo de lentes da loja (?retorno=1, outra aba): devolve a medida pra aba que abriu
+  const volta = new URLSearchParams(location.search).get('retorno') === '1' && window.opener && !window.opener.closed;
   el.innerHTML = `
     <div class="res-box">
       <div class="res-ok">✓ Medição pronta</div>
@@ -29,8 +31,9 @@ export function mostraResultado(dados, { onRefazer } = {}) {
       </div>
       <div class="res-exp">DNP é a distância de cada pupila até o meio do nariz. Somando as duas dá a DP.</div>
       ${dados.aviso ? `<div class="res-aviso">${dados.aviso}</div>` : ''}
+      ${volta ? `<button type="button" class="res-bt res-bt-pri res-usar" data-acao="usar">Usar esta medida no pedido</button>` : ''}
       <div class="res-acoes">
-        <button type="button" class="res-bt res-bt-pri" data-acao="copiar">Copiar medidas</button>
+        <button type="button" class="res-bt${volta ? '' : ' res-bt-pri'}" data-acao="copiar">Copiar medidas</button>
         <button type="button" class="res-bt" data-acao="refazer">Medir de novo</button>
       </div>
       ${dados.tecnico ? `<details class="res-tec"><summary>Detalhes técnicos</summary>${dados.tecnico}</details>` : ''}
@@ -44,6 +47,14 @@ export function mostraResultado(dados, { onRefazer } = {}) {
     try { await navigator.clipboard.writeText(texto); btCopiar.textContent = 'Copiado ✓'; }
     catch (e) { btCopiar.textContent = texto; }
     setTimeout(() => { btCopiar.textContent = 'Copiar medidas'; }, 2500);
+  };
+  const btUsar = el.querySelector('[data-acao="usar"]');
+  if (btUsar) btUsar.onclick = () => {
+    try { window.opener.postMessage({ type: 'pl-dnp', dp: dados.dp, od: dados.direito, oe: dados.esquerdo }, '*'); } catch (e) {}
+    btUsar.textContent = 'Medida enviada ✓ — pode voltar para a loja';
+    btUsar.disabled = true;
+    try { window.opener.focus(); } catch (e) {}
+    setTimeout(() => { try { window.close(); } catch (e) {} }, 900);
   };
   el.querySelector('[data-acao="refazer"]').onclick = () => (onRefazer ? onRefazer() : location.reload());
   el.querySelector('.res-box').focus?.();
