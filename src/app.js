@@ -94,7 +94,8 @@ const voz = createVoice({
   onBlocked: () => { vozAviso.hidden = false; },
   onUnlocked: () => { vozAviso.hidden = true; },
 });
-const atualizaBotao = () => { vozBtn.textContent = voz.on ? '🔊 Voz ligada (toque para desligar)' : '🔇 Voz desligada (toque para ligar)'; };
+const EMBED = document.documentElement.classList.contains('embed');   // dentro do fluxo de lentes da loja: texto curto
+const atualizaBotao = () => { vozBtn.textContent = EMBED ? (voz.on ? '🔊 Voz ligada · desligar' : '🔇 Voz desligada · ligar') : (voz.on ? '🔊 Voz ligada (toque para desligar)' : '🔇 Voz desligada (toque para ligar)'); };
 atualizaBotao();
 vozBtn.onclick = (e) => {
   e.stopPropagation();

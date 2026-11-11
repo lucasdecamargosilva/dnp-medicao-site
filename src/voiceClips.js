@@ -17,7 +17,7 @@ export const CLIPS = [
   { id: 'cabeca-reta', tela: 'Endireite a cabeça (não incline).', fala: 'Endireite a cabeça.' },
   { id: 'olhe-reto', tela: 'Olhe reto para a frente (não vire o rosto).', fala: 'Olhe reto para a frente, sem virar o rosto.' },
   { id: 'de-frente', tela: 'Fique bem de frente para a câmera (rosto no centro da imagem).', fala: 'Fique bem de frente para a câmera.' },
-  { id: 'olhe-camera', tela: 'Olhe fixo para a câmera, na lentinha.', fala: 'Olhe fixo para a câmera, na lentinha.' },
+  { id: 'olhe-camera', tela: 'Olhe fixo para a lente da câmera.', fala: 'Olhe fixo para a câmera, na lentinha.' },
   { id: 'medindo', tela: 'Medindo… não se mexa.', fala: 'Medindo. Não se mexa.' },
   { id: 'mexeu', tela: 'Você se mexeu. Vamos de novo: fique parado.', fala: 'Você se mexeu. Vamos de novo, fique parado.' },
   { id: 'mal-detectado', tela: 'Rosto muito próximo ou mal detectado.', fala: 'Não estou vendo bem o seu rosto.' },

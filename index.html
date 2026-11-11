@@ -4,6 +4,49 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Medição de DP</title>
+    <script>
+      // 11/11/2026: tema da loja quando o medidor está embutido no fluxo de lentes (?embed=1&cor=...)
+      (function () {
+        var q = new URLSearchParams(location.search); if (q.get('embed') !== '1') return;
+        var r = document.documentElement, hex = function (v) { v = String(v || '').replace(/[^0-9a-f]/gi, ''); return /^([0-9a-f]{3}|[0-9a-f]{6})$/i.test(v) ? '#' + v : ''; };
+        var rgb = function (h) { h = h.slice(1); if (h.length === 3) h = h.replace(/./g, '$&$&'); var n = parseInt(h, 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; };
+        var mix = function (h, a) { var c = rgb(h); return 'rgb(' + c.map(function (x) { return Math.round(x + (255 - x) * a); }).join(',') + ')'; };
+        var dark = function (h, a) { var c = rgb(h); return 'rgb(' + c.map(function (x) { return Math.round(x * (1 - a)); }).join(',') + ')'; };
+        r.classList.add('embed');
+        var cor = hex(q.get('cor')), borda = hex(q.get('borda')), fundo = hex(q.get('fundo')), texto = hex(q.get('texto'));
+        var css = '';
+        if (cor) css += '--pl:' + cor + ';--pl-escuro:' + dark(cor, .15) + ';--sup:' + mix(cor, .95) + ';--tinta:' + dark(cor, .2) + ';--txt2:' + mix(cor, .35) + ';--txt3:' + mix(cor, .5) + ';';
+        if (borda) css += '--linha:' + borda + ';';
+        var sup = hex(q.get('sup')); if (sup) css += '--sup:' + sup + ';';
+        var tinta = hex(q.get('tinta')); if (tinta) css += '--tinta:' + tinta + ';';
+        var txt2 = hex(q.get('txt2')); if (txt2) css += '--txt2:' + txt2 + ';';
+        if (q.get('cartoes') === '1') r.classList.add('cartoes');
+        if (q.get('so_auto') === '1') r.classList.add('so-auto');   // 11/11/2026 (Barch): só a foto automática, sem 'Enviar foto da galeria'
+        if (fundo) css += '--fundo:' + fundo + ';';
+        if (texto) css += '--on:' + texto + ';';
+        var raio = parseInt(q.get('raio'), 10); if (raio >= 0 && raio <= 40) css += '--raio:' + raio + 'px;';
+        r.style.cssText += css;
+        // instruções da foto automática em 3 passos curtos (só embutido)
+        addEventListener('DOMContentLoaded', function () {
+          var ia = document.getElementById('instr-auto'); if (!ia) return;
+          ia.innerHTML = '<ol class="ia-passos">' +
+            '<li><span class="ia-n">1</span><span>Encoste o cartão <b>deitado na testa</b>, do jeito que for mais fácil segurar.</span></li>' +
+            '<li><span class="ia-n">2</span><span>Olhe <b>para a lente da câmera</b> e siga a voz.</span></li>' +
+            '<li><span class="ia-n">3</span><span><b>Fique parado</b>: a câmera tira as 3 fotos sozinha.</span></li></ol>';
+          var lk = document.getElementById('look'); if (lk) lk.textContent = '▲ olhe para a câmera ▲';
+        });
+        // avisa a altura do conteúdo para o fluxo ajustar o iframe (sem espaço vazio embaixo)
+        var avisa = function () { try { parent.postMessage({ type: 'pl-dnp-altura', h: Math.ceil(document.body.getBoundingClientRect().height) }, '*'); } catch (e) {} };
+        addEventListener('load', avisa); addEventListener('DOMContentLoaded', function () {
+          try { new ResizeObserver(avisa).observe(document.body); } catch (e) { setInterval(avisa, 500); }
+          try { new MutationObserver(avisa).observe(document.body, { childList: true, subtree: true, attributes: true }); } catch (e) {}
+          avisa();
+        });
+        var f = String(q.get('fonte') || '').replace(/[^\w \-]/g, '').trim();
+        if (f && f !== 'Onest') { var l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'https://fonts.googleapis.com/css2?family=' + encodeURIComponent(f) + ':wght@400;500;600;700&display=swap'; document.head.appendChild(l);
+          var st = document.createElement('style'); st.textContent = "html.embed body,html.embed .res-box,html.embed .res-bt,html.embed .esc-bt{font-family:'" + f + "',system-ui,sans-serif!important}"; document.head.appendChild(st); }
+      })();
+    </script>
     <style>
       body { font-family: system-ui, sans-serif; margin: 16px; }
       #wrap { position: relative; max-width: 640px; }
@@ -128,6 +171,52 @@
       .res-dnp b { color: var(--pl-escuro); }
       .res-bt { border-radius: 14px; border-color: var(--linha); font-family: inherit; }
       .res-bt-pri { background: var(--pl); border-color: var(--pl); color: #fff; box-shadow: 0 8px 18px rgba(124, 58, 237, .22); }
+
+      /* ===== Embutido no fluxo de lentes da loja (11/11/2026, Barch) =====
+         ?embed=1&cor=303030&borda=e2e8f0&fundo=ffffff&texto=ffffff&fonte=Onest
+         Sem título (a caixa do fluxo já tem), sem emojis, cores e fonte da loja. */
+      html.embed body { padding: 4px 2px 10px; background: var(--fundo, #fff); }
+      html.embed body > h1 { display: none; }
+      html.embed .esc-intro { margin-top: 0; }
+      html.embed .esc-bt { border-radius: var(--raio, 16px); box-shadow: none; }
+      html.embed .esc-pri, html.embed .res-bt-pri { color: var(--on, #fff); box-shadow: none; }
+      html.embed .esc-pri small { color: var(--on, #fff); opacity: .8; }
+      html.embed .emo { display: none; }
+      html.embed #resCard { position: absolute; background: var(--fundo, #fff); align-items: flex-start; padding: 0; }
+      html.embed .res-box { box-shadow: none; border: 1.5px solid var(--linha); border-radius: var(--raio, 16px); max-width: none; }
+      html.embed .res-ok { background: var(--sup); color: var(--tinta); }
+      /* compacto: sem espaço sobrando (a altura do iframe acompanha o conteúdo) */
+      html.embed body { padding: 0 0 2px; }
+      html.embed #escolha { gap: 8px; }
+      html.embed .esc-intro { font-size: .82rem; margin: 0 0 2px; }
+      html.embed .esc-bt { padding: 11px 14px; font-size: .92rem; }
+      html.embed .esc-bt small { font-size: .76rem; }
+      html.embed .foto-passos { font-size: .85rem; padding: 10px 12px 10px 28px; margin-bottom: 10px; }
+      html.embed .foto-bts { gap: 8px; }
+      html.embed .foto-dica { font-size: .8rem; }
+      html.embed #msg { font-size: 1rem; }
+      html.embed body.res-aberto > :not(#resCard):not(script) { display: none !important; }
+      html.embed #resCard { position: static; display: block; }
+      html.embed .res-box { padding: 14px 12px 12px; }
+      html.embed .res-num { font-size: 2.6rem; }
+      html.embed .res-svg { max-width: 220px; margin: 8px auto 4px; }
+      /* ?cartoes=1: botões iguais aos cartões de opção do fluxo (branco, borda da loja, título + descrição) */
+      html.cartoes .esc-bt, html.cartoes .esc-pri { background: #fff; color: var(--tinta); border: 1.5px solid var(--linha); border-radius: var(--raio, 20px);
+        padding: 14px; font-size: 15px; font-weight: 700; line-height: 1.3; box-shadow: none; gap: 3px; }
+      html.cartoes .esc-bt small, html.cartoes .esc-pri small { color: var(--txt2); font-size: 13px; font-weight: 400; opacity: 1; }
+      html.cartoes .esc-bt:hover { border-color: var(--pl); box-shadow: 0 4px 14px rgba(15,23,42,.08); }
+      html.cartoes #escolha { gap: 10px; }
+      html.so-auto #bt-foto { display: none !important; }
+      /* tela da foto automática embutida (11/11/2026): instruções em passos, voz e "olhe aqui" discretos */
+      html.embed #instr-auto { text-align: left; font-size: 13.5px; line-height: 1.45; margin: 0 0 10px; }
+      html.embed .ia-passos { list-style: none; margin: 0; padding: 12px 14px; background: #fff; border: 1.5px solid var(--linha); border-radius: var(--raio, 16px); display: grid; gap: 8px; color: var(--txt2); }
+      html.embed .ia-passos li { display: flex; gap: 10px; align-items: flex-start; }
+      html.embed .ia-passos li b { color: var(--tinta); font-weight: 700; }
+      html.embed .ia-n { flex: none; width: 22px; height: 22px; border-radius: 50%; background: var(--pl); color: var(--on, #fff); font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; margin-top: 1px; }
+      html.embed #voz { font-size: 12px !important; padding: 6px 12px !important; margin: 0 auto 8px !important; font-weight: 600 !important; background: #fff !important; color: var(--txt2) !important; border: 1px solid var(--linha) !important; }
+      html.embed #look { font-size: 12px; font-weight: 600; color: var(--txt2); margin: 0 0 6px; letter-spacing: .02em; }
+      html.cartoes .esc-intro { color: var(--txt2); font-size: 13px; text-align: left; margin: 0 2px 2px; }
+      html.cartoes .foto-passos { background: #fff; border-color: var(--linha); border-radius: var(--raio, 20px); color: var(--txt2); }
     </style>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800&display=swap" />
@@ -137,8 +226,8 @@
     <!-- 24/10: escolha inicial — FOTO primeiro (mais fácil que posicionar o cartão ao vivo) -->
     <div id="escolha" hidden>
       <p class="esc-intro">Você vai precisar de um <strong>cartão de banco</strong> (qualquer um, é só para dar a escala).</p>
-      <button type="button" id="bt-auto" class="esc-bt esc-pri">📸 Foto automática <small>recomendado — a câmera tira sozinha quando estiver tudo certo</small></button>
-      <button type="button" id="bt-foto" class="esc-bt">🖼️ Enviar foto da galeria <small>se já tiver uma foto com o cartão na testa</small></button>
+      <button type="button" id="bt-auto" class="esc-bt esc-pri"><span class="emo">📸 </span>Foto automática <small>recomendado — a câmera tira sozinha quando estiver tudo certo</small></button>
+      <button type="button" id="bt-foto" class="esc-bt"><span class="emo">🖼️ </span>Enviar foto da galeria <small>se já tiver uma foto com o cartão na testa</small></button>
     </div>
 
     <section id="foto" hidden>
@@ -149,8 +238,8 @@
         <li>De preferência, <strong>outra pessoa tira a foto a ~1 metro</strong>, com o celular na altura dos olhos.</li>
       </ol>
       <div class="foto-bts">
-        <label class="esc-bt esc-pri">📷 Tirar foto agora<input id="foto-camera" type="file" accept="image/*" capture="environment" hidden></label>
-        <label class="esc-bt">🖼️ Escolher da galeria<input id="foto-galeria" type="file" accept="image/*" multiple hidden></label>
+        <label class="esc-bt esc-pri"><span class="emo">📷 </span>Tirar foto agora<input id="foto-camera" type="file" accept="image/*" capture="environment" hidden></label>
+        <label class="esc-bt"><span class="emo">🖼️ </span>Escolher da galeria<input id="foto-galeria" type="file" accept="image/*" multiple hidden></label>
       </div>
       <p class="foto-dica">Envie 2 ou 3 fotos para a medida ficar mais garantida.</p>
       <p id="foto-status"></p>
@@ -158,7 +247,7 @@
     </section>
 
     <div id="vivo" hidden>
-      <p id="instr-auto" class="instr-auto" hidden>Encoste o cartão <strong>deitado na testa</strong> (pode segurar como for mais fácil), olhe <strong>para a lentinha da câmera</strong> e siga a voz. <strong>Quando estiver tudo certo, a câmera tira as fotos sozinha</strong> — fique parado até completar 3.</p>
+      <p id="instr-auto" class="instr-auto" hidden>Encoste o cartão <strong>deitado na testa</strong> (pode segurar como for mais fácil), olhe <strong>para a lente da câmera</strong> e siga a voz. <strong>Quando estiver tudo certo, a câmera tira as fotos sozinha</strong> — fique parado até completar 3.</p>
       <p id="instr-vivo">Encoste um cartão de banco <strong>deitado na testa</strong>, segurando com <strong>um dedo no meio da borda de cima</strong> (mão por cima da cabeça, como no desenho tracejado) — <strong>as laterais do cartão precisam aparecer inteiras</strong>. Olhe <strong>para a câmera</strong> (não para a tela) o tempo todo.
       Fique a uns <strong>50 cm</strong> da câmera e <strong>parado</strong> por alguns segundos — a voz avisa.</p>
       <button id="voz" style="font-size:1.1rem;padding:10px 18px;margin:0 0 10px;border-radius:10px;border:0;background:#2563eb;color:#fff;cursor:pointer">🔊 Voz ligada</button>

@@ -37,7 +37,7 @@ export function checkPose({ leftEye, rightEye, noseCenter, cardSkew, cardRollDeg
   }
 
   if ((gaze != null && gaze > MAX_GAZE) || (lookDown != null && lookDown > MAX_LOOK_DOWN)) {
-    return { ok: false, message: 'Olhe fixo para a câmera, na lentinha.' };
+    return { ok: false, message: 'Olhe fixo para a lente da câmera.' };
   }
 
   if (frameWidth) {
