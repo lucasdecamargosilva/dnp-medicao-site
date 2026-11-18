@@ -106,8 +106,9 @@ export function prepareForehead(canvasEl, face, { sensivel = false } = {}) {
 
 // acha o cartão com os dois detectores; se nada, repete com bordas mais sensíveis (só nesse caso,
 // para não pesar a cada quadro). detectByLines é injetado para não criar import circular.
-export function findCard(canvasEl, face, detectByLines) {
-  for (const sensivel of [false, true]) {
+// tentarSensivel=false pula a 2ª tentativa (ao vivo ela roda só a cada poucos quadros: deixava a câmera lenta)
+export function findCard(canvasEl, face, detectByLines, { tentarSensivel = true } = {}) {
+  for (const sensivel of tentarSensivel ? [false, true] : [false]) {
     const pre = prepareForehead(canvasEl, face, { sensivel });
     if (!pre) return null;
     try {

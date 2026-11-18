@@ -10,7 +10,8 @@ const MAX_LOOK_DOWN = 0.2;    // eyeLookDown do MediaPipe (0–1). Fotos do Luca
                               // para baixo 0,34 e 0,67 (0,35 deixava passar a 1ª) — 14/10
 const MAX_GAZE = 0.07;        // olhar desviado ~10° para o lado (fração da largura do olho)
 const MIN_EYE_OPEN = 0.14;    // abaixo disso = piscando/olho semicerrado (pupila mal localizada)
-const MAX_CENTER_OFFSET = 0.1; // meio dos olhos até o centro da imagem, em fração da largura:
+const MAX_CENTER_OFFSET = 0.18; // meio dos olhos até o centro da imagem, em fração da largura (0,10 barrava
+                                // quem segura o celular na mão — 17/11; na DP total o efeito é desprezível):
                                // a correção de convergência supõe a câmera bem na frente
 
 export function checkPose({ leftEye, rightEye, noseCenter, cardSkew, cardRollDeg = 0, eyeOpen = null, frameWidth = null, gaze = null, lookDown = null }) {

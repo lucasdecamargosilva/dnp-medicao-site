@@ -56,7 +56,9 @@ export function restartSweep(g) {
 // ---- modo PARADO (padrão desde 14/10, pedido do Lucas: sem ter que se afastar) ----
 // Fica a uns 50 cm e segura. Usa a largura do cartão em relação ao LADO MAIOR do quadro (vale em
 // pé e deitado). Com FOV ~64° no lado maior: 0,17 ≈ 40 cm · 0,137 ≈ 50 cm · 0,11 ≈ 62 cm.
-export const STATIC_DEFAULTS = { minRatio: 0.11, maxRatio: 0.17 };
+// 17/11: faixa ampliada (era 0,11–0,17 ≈ 40–62 cm): a conta já corrige pela distância, e a faixa estreita
+// deixava as pessoas "ajustando um tempão". 0,10–0,19 ≈ 36–68 cm.
+export const STATIC_DEFAULTS = { minRatio: 0.10, maxRatio: 0.19 };
 
 export function staticStep(cardRatioLong, opts = {}) {
   const { minRatio, maxRatio } = { ...STATIC_DEFAULTS, ...opts };

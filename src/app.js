@@ -13,7 +13,8 @@ import { createGuide, guideStep, restartSweep, robustRange, staticStep } from '.
 import { CARD_MM } from './cardScale.js';
 import { createStableText, pushText, createStableFlag, pushFlag } from './statusBoard.js';
 import { createVoice } from './voice.js';
-import { createStability, pushFrame, stepMeasure } from './stability.js';
+import { createStability, pushFrame, stepMeasure, stepAuto } from './stability.js';
+import * as telemetria from './telemetria.js';
 import { mostraResultado } from './resultCard.js';
 import { loadOpenCv } from './opencvLoader.js';
 import { iniciaModoFoto } from './photoMode.js';
@@ -40,8 +41,7 @@ const STATIC_FRAMES = 40;
 // 3 fotos (cada uma passa por todas as verificações naquele instante) → mediana.
 let MODO_AUTO = qs.get('modo') === 'auto';
 const AUTO_FOTOS = 3;
-const AUTO_FIRME_MS = 600;     // parado e tudo ok por esse tempo antes de cada foto
-const AUTO_INTERVALO_MS = 450; // entre uma foto e outra
+// ritmo da captura (parado antes da foto, intervalo, tolerância a quadro ruim): stability.js → AUTO_DEFAULTS
 
 // "flash" + clique na hora da foto, e miniatura embaixo da câmera
 function efeitoFoto(canvas) {
@@ -146,6 +146,7 @@ function report(text, f) {
   window.__dnp.avisos[text] = (window.__dnp.avisos[text] || 0) + 1;
   window.__dnp.quadros += 1;
   const shown = pushText(stableMsg, text, now);
+  telemetria.marca(shown);
   setMsg(shown);
   voz.say(shown);
   checksEl.innerHTML = Object.keys(flags)
@@ -256,6 +257,7 @@ async function main() {
     warnEl.textContent = `Câmera com resolução baixa (${video.videoWidth}×${video.videoHeight}); a medida pode sair menos precisa.`;
   }
 
+  telemetria.inicia(MODO_AUTO ? 'auto' : MODO_AFASTAR ? 'afastar' : MODO_LENTO ? 'lento' : 'vivo');
   const guide = createGuide();
   // medição parada: só mede com a pessoa parada e olhando a câmera (stability.js)
   const est = createStability();
@@ -263,7 +265,8 @@ async function main() {
   // durante a medição, quadro sem rosto/cartão/pose ok só é PULADO; recomeça só se durar mais de 1,2 s
   // (antes qualquer falha de um instante cancelava e dizia "você se mexeu" com a pessoa parada)
   const quebraMedicao = () => {
-    med.firmeDesde = null;   // foto automática: qualquer quadro ruim zera o "tudo certo há X ms"
+    // foto automática: quadro ruim isolado é tolerado; só zera a contagem se durar (stepAuto)
+    if (MODO_AUTO) stepAuto(med.auto ??= {}, { ok: false, stable: null, t: performance.now() });
     if (MODO_AFASTAR || !MODO_LENTO || med.phase !== 'medir') return;
     const agora = performance.now();
     if (med.falhaDesde == null) med.falhaDesde = agora;
@@ -319,6 +322,7 @@ async function main() {
     });
     progressEl.value = 1;
     setMsg('Pronto!');
+    telemetria.envia({ concluiu: true, fotos: samples.length, dp: fit && fit.ok ? fit.total : old.total.value });
     const totalFala = (fit && fit.ok ? fit.total : old.total.value).toFixed(1).replace('.', ',');
     voz.sayResult(fit && fit.ok ? fit.total : old.total.value, `Pronto! Sua D P deu ${totalFala} milímetros.`);
   }
@@ -335,7 +339,10 @@ async function main() {
 
       drawFrameToWork();
       // contorno fechado primeiro; se o dedo quebrar o contorno, tenta pelas retas das bordas
-      const corners = findCard(work, face, detectCardByLines);
+      // 2ª tentativa (bordas sensíveis) só a cada 3 quadros sem cartão: em todo quadro deixava a câmera lenta
+      med.semCartao = med.semCartao || 0;
+      const corners = findCard(work, face, detectCardByLines, { tentarSensivel: med.semCartao % 3 === 2 });
+      med.semCartao = corners ? 0 : med.semCartao + 1;
       drawOverlay(face, corners);
       window.__dnp.ultimo = { corners, olhos: [face.leftEye, face.rightEye] };
       window.__dnp.olhar = face.gaze;
@@ -383,14 +390,8 @@ async function main() {
         const agora = performance.now();
         const sp = staticStep(wPx / ladoMaior);
         const stab = pushFrame(est, { t: agora, le: face.leftEye, re: face.rightEye, w: wPx });
-        let tira = false;
-        if (!sp.collect || stab.stable === false) {
-          med.firmeDesde = null;
-        } else if (stab.stable === true) {
-          med.firmeDesde ??= agora;
-          tira = agora - med.firmeDesde >= AUTO_FIRME_MS && agora - (med.ultimaFoto || 0) >= AUTO_INTERVALO_MS;
-        }
-        if (tira) { med.ultimaFoto = agora; efeitoFoto(work); }
+        const tira = stepAuto(med.auto ??= {}, { ok: sp.collect, stable: stab.stable, t: agora });
+        if (tira) efeitoFoto(work);
         step = { collect: tira, tooFar: false, done: tira && samples.length + 1 >= AUTO_FOTOS,
           progress: samples.length / AUTO_FOTOS, message: sp.collect ? 'Isso! Fique parado olhando para a câmera…' : sp.message };
       } else if (!MODO_LENTO) {

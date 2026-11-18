@@ -81,3 +81,32 @@ export function stepMeasure(m, { ok, stable, t, nSamples }, cfg = STABILITY_DEFA
   }
   return { collect: false, reset: false, done: false, message: 'Isso! Fique parado olhando para a câmera…' };
 }
+
+// ---- FOTO AUTOMÁTICA (17/11): ritmo da captura ----
+// Antes QUALQUER quadro ruim (cartão não achado num quadro, pose tremeu) zerava o "tudo certo há X ms";
+// como o cartão falha em vários quadros por segundo no celular, a foto quase nunca saía ("fica um tempão
+// ajustando e não lê"). Agora: falha de um instante é tolerada; só zera se durar mais que toleranciaMs
+// ou se a pessoa REALMENTE se mexer (stable === false).
+export const AUTO_DEFAULTS = { firmeMs: 400, intervaloMs: 250, toleranciaMs: 350 };
+
+// m: estado { firmeDesde, ruimDesde, ultimaFoto } · ok: quadro todo certo (rosto, cartão, pose, distância)
+// stable: true/false/null (pushFrame) · devolve true quando é hora de tirar a foto
+export function stepAuto(m, { ok, stable, t }, cfg = AUTO_DEFAULTS) {
+  if (stable === false) {                // mexeu de verdade: recomeça a contagem
+    m.firmeDesde = null;
+    m.ruimDesde = null;
+    return false;
+  }
+  if (!ok) {
+    m.ruimDesde ??= t;
+    if (t - m.ruimDesde > cfg.toleranciaMs) m.firmeDesde = null;
+    return false;
+  }
+  m.ruimDesde = null;
+  m.firmeDesde ??= t;
+  if (stable !== true) return false;     // ainda não dá para saber se está parado
+  if (t - m.firmeDesde < cfg.firmeMs) return false;
+  if (m.ultimaFoto != null && t - m.ultimaFoto < cfg.intervaloMs) return false;
+  m.ultimaFoto = t;
+  return true;
+}
