@@ -16,7 +16,7 @@ import { createVoice } from './voice.js';
 import { createStability, pushFrame, stepMeasure, stepAuto } from './stability.js';
 import * as telemetria from './telemetria.js';
 import { mostraResultado } from './resultCard.js';
-import { loadOpenCv } from './opencvLoader.js';
+import { loadOpenCv, segundosOpenCv } from './opencvLoader.js';
 import { iniciaModoFoto } from './photoMode.js';
 
 // parâmetros ópticos, ajustáveis pela URL para calibrar (ex.: ?hfov=70&cartao=10&rot=13)
@@ -256,8 +256,15 @@ async function main() {
   }
 
   telemetria.marca('carregando: leitor do cartão');
-  setMsg('Preparando o leitor do cartão…');
-  await loadOpenCv();
+  const tickCv = setInterval(() => {
+    telemetria.marca('carregando: leitor do cartão');
+    setMsg(`Preparando o leitor do cartão… (${segundosOpenCv()}s)`);
+  }, 500);
+  try {
+    await loadOpenCv();
+  } finally {
+    clearInterval(tickCv);
+  }
 
   if (video.videoWidth * video.videoHeight < MIN_PIXELS) {
     warnEl.textContent = `Câmera com resolução baixa (${video.videoWidth}×${video.videoHeight}); a medida pode sair menos precisa.`;
@@ -479,16 +486,29 @@ function iniciaAuto() {
 function iniciaVivo() {
   document.getElementById('escolha').hidden = true;
   document.getElementById('vivo').hidden = false;
-  main().catch((err) => setMsg(err.message));
+  main().catch((err) => {
+    setMsg(err.message);
+    // botão para tentar de novo (os arquivos já baixados ficam guardados, a 2ª vez é mais rápida)
+    if (!document.getElementById('bt-tentar')) {
+      const b = document.createElement('button');
+      b.id = 'bt-tentar';
+      b.type = 'button';
+      b.className = 'esc-bt esc-pri';
+      b.style.marginTop = '8px';
+      b.textContent = 'Tentar de novo';
+      b.onclick = () => location.reload();
+      msg.after(b);
+    }
+  });
 }
 function iniciaFoto() {
   document.getElementById('escolha').hidden = true;
   iniciaModoFoto({ opt: OPT, voz }).catch((err) => { document.getElementById('foto-status').textContent = err.message; });
 }
-// começa a baixar o leitor do rosto já na tela de escolha (e o OpenCV só para o cache, sem rodar:
-// rodar antes do detector trava o MediaPipe — ver opencvLoader.js)
+// começa a baixar o leitor do rosto já na tela de escolha, e em seguida o do cartão (OpenCV)
 if (qs.get('previa') !== 'resultado') {
-  preCarregaDetector().then(() => fetch('./vendor/opencv.js').catch(() => {})).catch(() => {});
+  // depois que o leitor do rosto está pronto, já prepara o do cartão (antes dele travaria o MediaPipe)
+  preCarregaDetector().then(() => loadOpenCv()).catch(() => {});
 }
 const modo = qs.get('modo');
 if (modo === 'foto') iniciaFoto();
