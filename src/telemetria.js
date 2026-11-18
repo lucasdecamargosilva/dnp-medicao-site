@@ -40,13 +40,14 @@ function navegador() {
   return `${so} · ${app}`;
 }
 
-export function envia({ concluiu, fotos = null, dp = null } = {}) {
+export function envia({ concluiu, fotos = null, dp = null, extra = null } = {}) {
   if (!st || st.enviado) return;
   st.enviado = true;
   const dur = (performance.now() - st.t0) / 1000;
-  if (!concluiu && dur < 3) return;   // abriu e fechou: não é medição
+  if (!concluiu && dur < 3 && !extra) return;   // abriu e fechou: não é medição
   const travas = {};
   for (const [k, v] of Object.entries(st.travas).sort((a, b) => b[1] - a[1]).slice(0, 12)) travas[k] = Math.round(v * 10) / 10;
+  if (extra) Object.assign(travas, extra);   // página de diagnóstico: tempos de cada etapa
   const corpo = {
     origem: origem(), modo: st.modo, celular: /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent),
     duracao_s: Math.round(dur * 10) / 10, concluiu: !!concluiu, fps: Math.round((st.quadros / Math.max(dur, 0.1)) * 10) / 10,

@@ -1,0 +1,35 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>diag</title><style>body{font:16px system-ui;margin:12px}pre{white-space:pre-wrap;font-size:14px}</style></head><body>
+<h3>Diagnóstico de carregamento</h3><pre id="o">iniciando…</pre>
+<script type="module">
+const o = document.getElementById('o');
+const tempos = {};
+let enviado = false;
+async function envia(fim) {
+  if (enviado) return; enviado = true;
+  const t = await import('/src/telemetria.js');
+  t.inicia('diag');
+  Object.assign(tempos, { maior_congelamento_s: +(maiorTrava / 1000).toFixed(1), parou_em: etapa });
+  t.envia({ concluiu: fim, fotos: null, dp: null, extra: tempos });
+}
+setTimeout(() => envia(false), 120000); const t0 = performance.now(); const log = (s) => { o.textContent += `\n${((performance.now()-t0)/1000).toFixed(1)}s  ${s}`; };
+o.textContent = navigator.userAgent;
+// batimento: mede quanto tempo a página ficou CONGELADA (sem rodar timers)
+let ult = performance.now(), maiorTrava = 0, travaEm = '';
+let etapa = 'início';
+setInterval(() => { const a = performance.now(); const g = a - ult; if (g > maiorTrava) { maiorTrava = g; travaEm = etapa; } ult = a; }, 50);
+const fd = await import('/src/faceDetector.js');
+etapa = 'leitor do rosto'; log('começa leitor do rosto');
+const tr0 = performance.now(); const lm = await fd.preCarregaDetector(); tempos.rosto_s = +((performance.now()-tr0)/1000).toFixed(1); tempos.cong_rosto_s = +(maiorTrava/1000).toFixed(1);
+log(`leitor do rosto pronto · maior congelamento até aqui: ${(maiorTrava/1000).toFixed(1)}s (${travaEm})`);
+maiorTrava = 0;
+const cvl = await import('/src/opencvLoader.js');
+etapa = 'leitor do cartão'; log('começa leitor do cartão');
+const tc0 = performance.now(); await cvl.loadOpenCv(); tempos.cartao_s = +((performance.now()-tc0)/1000).toFixed(1); tempos.cong_cartao_s = +(maiorTrava/1000).toFixed(1);
+log(`leitor do cartão pronto · maior congelamento: ${(maiorTrava/1000).toFixed(1)}s (${travaEm})`);
+maiorTrava = 0; etapa = 'detectar rosto';
+const c = document.createElement('canvas'); c.width = 1280; c.height = 720; c.getContext('2d').fillRect(0,0,10,10);
+const t1 = performance.now(); for (let i = 0; i < 5; i++) lm.detectForVideo(c, performance.now() + i); tempos.deteccao_ms = Math.round((performance.now()-t1)/5); log(`detecção: ${tempos.deteccao_ms} ms por quadro`);
+log('FIM — pode fechar e me avisar');
+envia(true);
+</script></body></html>

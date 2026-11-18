@@ -17,7 +17,7 @@ export function loadOpenCv() {
   inicio = Date.now();
   carregando = new Promise((resolve, reject) => {
     const script = document.createElement('script');
-    script.src = './vendor/opencv.js';
+    script.src = '/vendor/opencv.js';   // absoluto: vale também para páginas fora da raiz (diagnóstico)
     const falha = (msg) => {
       script.remove();
       carregando = null;
