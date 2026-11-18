@@ -2,7 +2,7 @@
 // o cartão na posição certa ao vivo. Aqui a pessoa (ou alguém para ela) tira a foto com calma e envia.
 // Cada foto passa pelas mesmas verificações da medição ao vivo (rosto, cartão inteiro, cabeça reta,
 // olhando para a câmera); a lente vem do EXIF quando o celular manda. Até 3 fotos → mediana.
-import { createFaceDetector, detectFace } from './faceDetector.js';
+import { detectFace, preCarregaDetector, etapaDoDetector } from './faceDetector.js';
 import { loadOpenCv } from './opencvLoader.js';
 import { findCard } from './cardDetector.js';
 import { detectCardByLines } from './cardLines.js';
@@ -25,7 +25,9 @@ export async function iniciaModoFoto({ opt, voz }) {
   inputs.forEach((i) => { i.disabled = true; });
 
   status.textContent = 'Preparando… (alguns segundos na primeira vez)';
-  const landmarker = await createFaceDetector((e) => { status.textContent = e; });
+  const tick = setInterval(() => { status.textContent = etapaDoDetector() || 'Preparando…'; }, 500);
+  let landmarker;
+  try { landmarker = await preCarregaDetector(); } finally { clearInterval(tick); }
   status.textContent = 'Preparando o leitor do cartão…';
   await loadOpenCv();
   status.textContent = '';

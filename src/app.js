@@ -1,6 +1,6 @@
 // src/app.js
 import { startCamera } from './camera.js';
-import { createFaceDetector, detectFace } from './faceDetector.js';
+import { detectFace, preCarregaDetector, etapaDoDetector } from './faceDetector.js';
 import { findCard } from './cardDetector.js';
 import { detectCardByLines } from './cardLines.js';
 import { cardScale } from './cardScale.js';
@@ -236,28 +236,33 @@ function fmt(m) {
 }
 
 async function main() {
+  telemetria.inicia(MODO_AUTO ? 'auto' : MODO_AFASTAR ? 'afastar' : MODO_LENTO ? 'lento' : 'vivo');
+  telemetria.marca('carregando: câmera');
   setMsg('Ligando a câmera…');
   await startCamera(video);
 
-  setMsg('Carregando detector de rosto…');
+  // o detector já vem baixando desde que a página abriu (preCarregaDetector); aqui só espera
   const t0 = performance.now();
-  let etapa = 'Carregando detector de rosto…';
-  const tick = setInterval(() => setMsg(`${etapa} (${Math.round((performance.now() - t0) / 1000)}s)`), 500);
+  const tick = setInterval(() => {
+    const etapa = etapaDoDetector() || 'Preparando o leitor do rosto…';
+    telemetria.marca('carregando: ' + etapa);
+    setMsg(`${etapa} (${Math.round((performance.now() - t0) / 1000)}s)`);
+  }, 500);
   let landmarker;
   try {
-    landmarker = await createFaceDetector((e) => { etapa = e; });
+    landmarker = await preCarregaDetector();
   } finally {
     clearInterval(tick);
   }
 
-  setMsg('Carregando OpenCV…');
+  telemetria.marca('carregando: leitor do cartão');
+  setMsg('Preparando o leitor do cartão…');
   await loadOpenCv();
 
   if (video.videoWidth * video.videoHeight < MIN_PIXELS) {
     warnEl.textContent = `Câmera com resolução baixa (${video.videoWidth}×${video.videoHeight}); a medida pode sair menos precisa.`;
   }
 
-  telemetria.inicia(MODO_AUTO ? 'auto' : MODO_AFASTAR ? 'afastar' : MODO_LENTO ? 'lento' : 'vivo');
   const guide = createGuide();
   // medição parada: só mede com a pessoa parada e olhando a câmera (stability.js)
   const est = createStability();
@@ -479,6 +484,11 @@ function iniciaVivo() {
 function iniciaFoto() {
   document.getElementById('escolha').hidden = true;
   iniciaModoFoto({ opt: OPT, voz }).catch((err) => { document.getElementById('foto-status').textContent = err.message; });
+}
+// começa a baixar o leitor do rosto já na tela de escolha (e o OpenCV só para o cache, sem rodar:
+// rodar antes do detector trava o MediaPipe — ver opencvLoader.js)
+if (qs.get('previa') !== 'resultado') {
+  preCarregaDetector().then(() => fetch('./vendor/opencv.js').catch(() => {})).catch(() => {});
 }
 const modo = qs.get('modo');
 if (modo === 'foto') iniciaFoto();

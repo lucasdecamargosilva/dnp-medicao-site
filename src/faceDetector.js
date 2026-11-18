@@ -20,7 +20,7 @@ const LEFT_LIDS = [386, 374, 362, 263];
 const WASM_PATH = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm';
 const MODEL_PATH =
   'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task';
-const STAGE_TIMEOUT_MS = 60000;
+const STAGE_TIMEOUT_MS = 90000;   // 4G lento: 13 MB podem levar mais de 1 min; aí dá erro e pode tentar de novo
 
 function withTimeout(promise, ms, label) {
   return Promise.race([
@@ -41,8 +41,23 @@ function buildLandmarker(fileset, delegate) {
 }
 
 // onProgress(msg) é opcional: recebe o texto da etapa atual para mostrar na tela.
+// ---- pré-carregamento (17/11): o detector baixa ~13 MB (motor 9,4 MB + modelo 3,7 MB). No 4G isso
+// levava dezenas de segundos DEPOIS que a pessoa tocava em "Foto automática" ("fica só carregando o
+// modelo do rosto"). Agora começa a baixar assim que a página abre; quem precisa só espera a mesma promessa.
+// Se falhar (rede caiu, demorou demais), a próxima chamada tenta de novo do zero.
+let promessaDetector = null;
+let etapaDetector = '';
+export function preCarregaDetector() {
+  if (!promessaDetector) {
+    promessaDetector = createFaceDetector((e) => { etapaDetector = e; });
+    promessaDetector.catch(() => { promessaDetector = null; });
+  }
+  return promessaDetector;
+}
+export const etapaDoDetector = () => etapaDetector;
+
 export async function createFaceDetector(onProgress = () => {}) {
-  onProgress('Baixando o motor do detector (WASM ~9MB)…');
+  onProgress('Preparando o leitor do rosto…');
   const fileset = await withTimeout(
     FilesetResolver.forVisionTasks(WASM_PATH),
     STAGE_TIMEOUT_MS,
@@ -60,8 +75,8 @@ export async function createFaceDetector(onProgress = () => {}) {
       console.warn('Detector em GPU falhou, tentando CPU:', gpuErr);
     }
   }
-  onProgress('Carregando modelo do rosto…');
-  return await withTimeout(buildLandmarker(fileset, 'CPU'), STAGE_TIMEOUT_MS, 'Modelo do rosto');
+  onProgress('Baixando o leitor do rosto (primeira vez demora mais)…');
+  return await withTimeout(buildLandmarker(fileset, 'CPU'), STAGE_TIMEOUT_MS, 'Leitor do rosto');
 }
 
 export function detectFace(landmarker, videoEl) {

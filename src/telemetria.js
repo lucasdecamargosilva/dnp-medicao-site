@@ -31,6 +31,15 @@ function origem() {
   return location.search.includes('embed=1') ? 'embutido' : 'direto';
 }
 
+// tipo de aparelho/navegador, genérico (sem identificar a pessoa): "iPhone · Safari", "Android · Instagram"…
+function navegador() {
+  const ua = navigator.userAgent;
+  const so = /iPhone|iPad/.test(ua) ? 'iPhone' : /Android/.test(ua) ? 'Android' : /Mac OS/.test(ua) ? 'Mac' : /Windows/.test(ua) ? 'Windows' : 'outro';
+  const app = /Instagram/.test(ua) ? 'Instagram' : /FBAN|FBAV/.test(ua) ? 'Facebook' : /WhatsApp/.test(ua) ? 'WhatsApp'
+    : /SamsungBrowser/.test(ua) ? 'Samsung' : /CriOS|Chrome/.test(ua) ? 'Chrome' : /FxiOS|Firefox/.test(ua) ? 'Firefox' : /Safari/.test(ua) ? 'Safari' : 'outro';
+  return `${so} · ${app}`;
+}
+
 export function envia({ concluiu, fotos = null, dp = null } = {}) {
   if (!st || st.enviado) return;
   st.enviado = true;
@@ -41,7 +50,7 @@ export function envia({ concluiu, fotos = null, dp = null } = {}) {
   const corpo = {
     origem: origem(), modo: st.modo, celular: /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent),
     duracao_s: Math.round(dur * 10) / 10, concluiu: !!concluiu, fps: Math.round((st.quadros / Math.max(dur, 0.1)) * 10) / 10,
-    fotos, dp: Number.isFinite(dp) ? Math.round(dp * 10) / 10 : null, travas,
+    fotos, dp: Number.isFinite(dp) ? Math.round(dp * 10) / 10 : null, travas, navegador: navegador(),
   };
   try {
     fetch(URL_LOG, { method: 'POST', keepalive: true, headers: { apikey: ANON, 'Content-Type': 'application/json', Prefer: 'return=minimal' }, body: JSON.stringify(corpo) }).catch(() => {});
