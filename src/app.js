@@ -351,10 +351,9 @@ async function main() {
 
       drawFrameToWork();
       // contorno fechado primeiro; se o dedo quebrar o contorno, tenta pelas retas das bordas
-      // 2ª tentativa (bordas sensíveis) só a cada 3 quadros sem cartão: em todo quadro deixava a câmera lenta
-      med.semCartao = med.semCartao || 0;
-      const corners = findCard(work, face, detectCardByLines, { tentarSensivel: med.semCartao % 3 === 2 });
-      med.semCartao = corners ? 0 : med.semCartao + 1;
+      // 21/11: volta a tentar as bordas sensíveis em TODO quadro sem cartão (como até 17/11). Rodar só
+      // 1 a cada 3 quadros deixou o cartão real (pouco contraste com a testa) aparecendo e sumindo.
+      const corners = findCard(work, face, detectCardByLines);
       drawOverlay(face, corners);
       window.__dnp.ultimo = { corners, olhos: [face.leftEye, face.rightEye] };
       window.__dnp.olhar = face.gaze;
