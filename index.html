@@ -35,6 +35,10 @@
             '<li><span class="ia-n">2</span><span>Olhe <b>para a lente da câmera</b> e siga a voz.</span></li>' +
             '<li><span class="ia-n">3</span><span><b>Fique parado</b>: a câmera tira as 3 fotos sozinha.</span></li></ol>';
           var lk = document.getElementById('look'); if (lk) lk.textContent = '▲ olhe para a câmera ▲';
+          // 22/11/2026 (Barch DP): ?iniciar=1 — botão vira o início do passo a passo guiado e avisa a página quando começa
+          var ba = document.getElementById('bt-auto');
+          if (ba && q.get('iniciar') === '1') ba.innerHTML = '<span class="emo">📸 </span>INICIAR MEDIÇÃO <small>passo a passo guiado pela voz — a câmera tira as fotos sozinha</small>';
+          if (ba) ba.addEventListener('click', function () { try { parent.postMessage({ type: 'pl-dnp-inicio' }, '*'); } catch (e) {} });
         });
         // avisa a altura do conteúdo para o fluxo ajustar o iframe (sem espaço vazio embaixo)
         var avisa = function () { try { parent.postMessage({ type: 'pl-dnp-altura', h: Math.ceil(document.body.getBoundingClientRect().height) }, '*'); } catch (e) {} };
@@ -217,6 +221,7 @@
       html.embed #voz { font-size: 12px !important; padding: 6px 12px !important; margin: 0 auto 8px !important; font-weight: 600 !important; background: #fff !important; color: var(--txt2) !important; border: 1px solid var(--linha) !important; }
       html.embed #look { font-size: 12px; font-weight: 600; color: var(--txt2); margin: 0 0 6px; letter-spacing: .02em; }
       /* 22/11/2026: ?passos=sup — passos e chips iguais aos cartões da página que embute (Barch DP) */
+      html.passos-sup .esc-bt { align-items: center; text-align: center; padding: 15px 18px; letter-spacing: .02em; }
       html.passos-sup .ia-passos { background: var(--sup); border: 0; border-radius: var(--raio, 14px); padding: 12px 14px; gap: 10px; font-size: 14.5px; }
       html.passos-sup .ia-n { width: 26px; height: 26px; font-size: 13px; }
       html.passos-sup #voz { background: var(--sup) !important; border-color: transparent !important; }
