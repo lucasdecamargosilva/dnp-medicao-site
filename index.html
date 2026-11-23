@@ -223,6 +223,12 @@
       /* 22/11/2026: ?passos=sup — passos e chips iguais aos cartões da página que embute (Barch DP) */
       html.passos-sup .esc-intro { display: none; }   /* a página que embute já diz para ter o cartão */
       html.passos-sup .esc-bt { align-items: center; text-align: center; padding: 15px 18px; letter-spacing: .02em; }
+      /* 22/11/2026 (Lucas): indicadores (Rosto/Cartão/Postura/Distância) e a mensagem ACIMA do vídeo */
+      html.passos-sup #vivo { display: flex; flex-direction: column; }
+      html.passos-sup #instr-auto { order: 0; } html.passos-sup #checks { order: 1; justify-content: center; margin: 0 0 6px; }
+      html.passos-sup #msg { order: 2; margin: 4px 0 10px; text-align: center; min-height: 0; }
+      html.passos-sup #look { order: 3; } html.passos-sup #wrap { order: 4; } html.passos-sup #progress { order: 5; width: 100%; }
+      html.passos-sup #count, html.passos-sup #auto-fotos, html.passos-sup #warn, html.passos-sup #result { order: 6; }
       html.passos-sup .ia-passos { background: var(--sup); border: 0; border-radius: var(--raio, 14px); padding: 12px 14px; gap: 10px; font-size: 14.5px; }
       html.passos-sup .ia-n { width: 26px; height: 26px; font-size: 13px; }
       html.passos-sup #voz { display: none !important; }   /* 22/11/2026 (Lucas): sem o botão de desligar a voz no DP da Barch */
