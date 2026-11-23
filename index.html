@@ -39,6 +39,39 @@
           var ba = document.getElementById('bt-auto');
           if (ba && q.get('iniciar') === '1') ba.innerHTML = '<span class="emo">📸 </span>INICIAR MEDIÇÃO <small>passo a passo guiado pela voz — a câmera tira as fotos sozinha</small>';
           if (ba) ba.addEventListener('click', function () { try { parent.postMessage({ type: 'pl-dnp-inicio' }, '*'); } catch (e) {} });
+          // 22/11/2026 (Barch DP): ?tutorial=1 — INICIAR MEDIÇÃO mostra antes como segurar o cartão; a câmera só abre em ESTOU PREPARADO(A)
+          if (ba && q.get('tutorial') === '1') {
+            var pronto = false;
+            var tw = document.createElement('section'); tw.id = 'tutorial'; tw.hidden = true;
+            tw.innerHTML =
+              '<div class="tut-anim" aria-hidden="true"><svg viewBox="0 0 240 210" role="img">' +
+                '<path class="tut-cabelo" d="M52 104c-4-52 30-82 68-82s72 30 68 82c-10-26-36-40-68-40s-58 14-68 40z"/>' +
+                '<ellipse class="tut-rosto" cx="120" cy="118" rx="64" ry="78"/>' +
+                '<path class="tut-traco" d="M88 116q10-6 20 0M132 116q10-6 20 0"/>' +
+                '<ellipse class="tut-olho" cx="98" cy="130" rx="6" ry="7"/><ellipse class="tut-olho" cx="142" cy="130" rx="6" ry="7"/>' +
+                '<path class="tut-traco" d="M114 150q6 6 12 0M104 170q16 10 32 0"/>' +
+                '<rect class="tut-alvo" x="80" y="60" width="80" height="50" rx="7"/>' +
+                '<g class="tut-cartao"><rect class="tut-card" x="80" y="60" width="80" height="50" rx="7"/>' +
+                  '<rect class="tut-chip" x="89" y="72" width="15" height="11" rx="2"/><rect class="tut-linha" x="89" y="94" width="46" height="5" rx="2.5"/>' +
+                  '<rect class="tut-dedo" x="112" y="30" width="16" height="38" rx="8"/></g>' +
+                '<g class="tut-ok"><path class="tut-seta" d="M66 85h-16M174 85h16"/><circle cx="196" cy="40" r="13"/><path d="M190 40l4 4 8-8"/></g>' +
+              '</svg></div>' +
+              '<ol class="ia-passos tut-dicas">' +
+                '<li><span class="ia-n">1</span><span>Cartão <b>deitado na testa</b>, logo acima das sobrancelhas.</span></li>' +
+                '<li><span class="ia-n">2</span><span>Segure com <b>um dedo no meio da borda de cima</b>. As laterais ficam livres.</span></li>' +
+                '<li><span class="ia-n">3</span><span>Celular na altura dos olhos, <b>olhe para a câmera</b> e fique parado.</span></li></ol>' +
+              '<button type="button" id="bt-pronto" class="esc-bt esc-pri">ESTOU PREPARADO(A)</button>';
+            var esc = document.getElementById('escolha'); if (esc) esc.after(tw);
+            document.addEventListener('click', function (ev) {
+              if (pronto || !ev.target.closest || !ev.target.closest('#bt-auto')) return;
+              ev.stopImmediatePropagation(); ev.preventDefault();
+              if (esc) esc.hidden = true; tw.hidden = false;
+              try { parent.postMessage({ type: 'pl-dnp-tutorial' }, '*'); } catch (e) {}
+            }, true);
+            document.getElementById('bt-pronto').addEventListener('click', function () {
+              pronto = true; tw.hidden = true; if (esc) esc.hidden = false; ba.click();
+            });
+          }
         });
         // avisa a altura do conteúdo para o fluxo ajustar o iframe (sem espaço vazio embaixo)
         var avisa = function () { try { parent.postMessage({ type: 'pl-dnp-altura', h: Math.ceil(document.body.getBoundingClientRect().height) }, '*'); } catch (e) {} };
@@ -230,6 +263,24 @@
       html.passos-sup #bt-tentar { order: 2; margin: 0 0 12px !important; }
       html.passos-sup #look { order: 3; } html.passos-sup #wrap { order: 4; } html.passos-sup #progress { order: 5; width: 100%; }
       html.passos-sup #count, html.passos-sup #auto-fotos, html.passos-sup #warn, html.passos-sup #result { order: 6; }
+      /* 22/11/2026: tutorial de como segurar o cartão (?tutorial=1) */
+      #tutorial { max-width: 560px; margin: 0 auto; display: grid; gap: 12px; }
+      #tutorial .tut-anim { background: var(--sup); border-radius: var(--raio, 14px); padding: 10px 0 4px; display: grid; place-items: center; }
+      #tutorial svg { width: 100%; max-width: 230px; height: auto; display: block; }
+      .tut-cabelo { fill: var(--tinta); opacity: .85; } .tut-rosto { fill: #f3d9c6; stroke: rgba(0,0,0,.08); stroke-width: 2; }
+      .tut-olho { fill: var(--tinta); } .tut-traco { fill: none; stroke: var(--tinta); stroke-width: 3; stroke-linecap: round; opacity: .75; }
+      .tut-alvo { fill: none; stroke: var(--pl); stroke-width: 2.5; stroke-dasharray: 7 6; opacity: .7; }
+      .tut-card { fill: var(--pl); } .tut-chip { fill: #e9c46a; } .tut-linha { fill: rgba(255,255,255,.55); }
+      .tut-dedo { fill: #ecc7ad; stroke: rgba(0,0,0,.12); stroke-width: 2; }
+      .tut-ok circle { fill: #2f9e5b; } .tut-ok path:not(.tut-seta) { fill: none; stroke: #fff; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+      .tut-seta { fill: none; stroke: #2f9e5b; stroke-width: 3; stroke-linecap: round; stroke-dasharray: 4 5; }
+      .tut-cartao { animation: tutCartao 4.2s cubic-bezier(.25,.8,.25,1) infinite; }
+      .tut-ok { animation: tutOk 4.2s ease infinite; }
+      @keyframes tutCartao { 0% { transform: translateY(110px); opacity: 0; } 12% { opacity: 1; } 45%, 100% { transform: translateY(0); opacity: 1; } }
+      @keyframes tutOk { 0%, 50% { opacity: 0; } 62%, 92% { opacity: 1; } 100% { opacity: 0; } }
+      @media (prefers-reduced-motion: reduce) { .tut-cartao, .tut-ok { animation: none; } }
+      #tutorial .tut-dicas { margin: 0; }
+      #bt-pronto { align-items: center; text-align: center; }
       html.passos-sup .ia-passos { background: var(--sup); border: 0; border-radius: var(--raio, 14px); padding: 12px 14px; gap: 10px; font-size: 14.5px; }
       html.passos-sup .ia-n { width: 26px; height: 26px; font-size: 13px; }
       html.passos-sup #voz { display: none !important; }   /* 22/11/2026 (Lucas): sem o botão de desligar a voz no DP da Barch */
