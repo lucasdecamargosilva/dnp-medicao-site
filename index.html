@@ -21,7 +21,8 @@
         var tinta = hex(q.get('tinta')); if (tinta) css += '--tinta:' + tinta + ';';
         var txt2 = hex(q.get('txt2')); if (txt2) css += '--txt2:' + txt2 + ';';
         if (q.get('cartoes') === '1') r.classList.add('cartoes');
-        if (q.get('so_auto') === '1') r.classList.add('so-auto');   // 11/11/2026 (Barch): só a foto automática, sem 'Enviar foto da galeria'
+        if (q.get('so_auto') === '1') r.classList.add('so-auto');
+        if (q.get('passos') === 'sup') r.classList.add('passos-sup');   // 22/11/2026 (Barch DP): passos no visual da página (fundo --sup, sem borda); opt-in   // 11/11/2026 (Barch): só a foto automática, sem 'Enviar foto da galeria'
         if (fundo) css += '--fundo:' + fundo + ';';
         if (texto) css += '--on:' + texto + ';';
         var raio = parseInt(q.get('raio'), 10); if (raio >= 0 && raio <= 40) css += '--raio:' + raio + 'px;';
@@ -215,6 +216,10 @@
       html.embed .ia-n { flex: none; width: 22px; height: 22px; border-radius: 50%; background: var(--pl); color: var(--on, #fff); font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; margin-top: 1px; }
       html.embed #voz { font-size: 12px !important; padding: 6px 12px !important; margin: 0 auto 8px !important; font-weight: 600 !important; background: #fff !important; color: var(--txt2) !important; border: 1px solid var(--linha) !important; }
       html.embed #look { font-size: 12px; font-weight: 600; color: var(--txt2); margin: 0 0 6px; letter-spacing: .02em; }
+      /* 22/11/2026: ?passos=sup — passos e chips iguais aos cartões da página que embute (Barch DP) */
+      html.passos-sup .ia-passos { background: var(--sup); border: 0; border-radius: var(--raio, 14px); padding: 12px 14px; gap: 10px; font-size: 14.5px; }
+      html.passos-sup .ia-n { width: 26px; height: 26px; font-size: 13px; }
+      html.passos-sup #voz { background: var(--sup) !important; border-color: transparent !important; }
       html.cartoes .esc-intro { color: var(--txt2); font-size: 13px; text-align: left; margin: 0 2px 2px; }
       html.cartoes .foto-passos { background: #fff; border-color: var(--linha); border-radius: var(--raio, 20px); color: var(--txt2); }
     </style>
