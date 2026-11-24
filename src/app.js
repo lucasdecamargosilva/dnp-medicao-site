@@ -373,7 +373,7 @@ async function main() {
       lastCard.at = performance.now();
 
       const { mmPerPixel, skew, rollDeg } = cardScale(corners);
-      const pose = checkPose({
+      const poseArgs = {
         eyeOpen: face.eyeOpen,
         gaze: face.gaze,          // olhar para o lado
         lookDown: face.lookDown,  // olhar para baixo (pedido do Lucas: mediu olhando a tela)
@@ -383,7 +383,18 @@ async function main() {
         noseCenter: face.noseCenter,
         cardSkew: skew,
         cardRollDeg: rollDeg,
-      });
+      };
+      // 24/11/2026: travado SÓ no "olhe para a lente" por mais de 5 s → tolerância maior (ver poseGate.js)
+      let pose = checkPose(poseArgs);
+      const SO_OLHAR = 'Olhe fixo para a lente da câmera.';
+      if (!pose.ok && pose.message === SO_OLHAR) {
+        const agoraOlhar = performance.now();
+        if (window.__dnpOlharDesde == null) window.__dnpOlharDesde = agoraOlhar;
+        if (agoraOlhar - window.__dnpOlharDesde > 5000) pose = checkPose({ ...poseArgs, relaxOlhar: true });
+      } else if (pose.ok || pose.message !== SO_OLHAR) {
+        if (!window.__dnpOlharRelaxado) window.__dnpOlharDesde = null;
+      }
+      if (pose.ok && window.__dnpOlharDesde != null) window.__dnpOlharRelaxado = true;   // segue relaxado até o fim da medição
 
       if (!pose.ok) {
         quebraMedicao();
